@@ -136,6 +136,9 @@ tasks.register('jlinkImage') {
             return
         }
         if (project.findProperty('packagingUseJlink')?.toString()?.toBoolean() == false) {
+            // Drop any image left by an earlier build, otherwise jpackageDmg would still
+            // pick it up and the documented opt-out would silently do nothing.
+            runtimeImageDir.deleteDir()
             println 'jlinkImage skipped: packagingUseJlink=false'
             return
         }
@@ -206,36 +209,57 @@ tasks.register('jlinkImage') {
 
 tasks.register('jpackageDmg', Exec) {
     dependsOn 'prepareJpackageInput', 'makeIcns', 'jlinkImage'
+    workingDir macWorkDir
+    // Everything below is resolved in doFirst, i.e. at execution time. It must NOT move back
+    // into the configuration block: runtimeImageDir is produced by the jlinkImage task this one
+    // depends on, so at configuration time it does not exist yet on a clean tree and the runtime
+    // choice would silently fall back to the full JDK.
     doFirst {
         if (!org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
             throw new GradleException('jpackageDmg must be executed on macOS')
         }
         dmgDestDir.mkdirs()
+
+        def javaHome = (project.findProperty('packagingJavaHome') ?: project.findProperty('org.gradle.java.home') ?: System.getenv('JAVA_HOME') ?: System.getProperty('java.home'))
+        def jpackageBin = new File(javaHome, 'bin/jpackage').absolutePath
+        def rawVer = (project.version ?: '1.0.0').toString()
+        def appVer = rawVer.replaceAll(/[^0-9.]/,'')
+        if (!(appVer ==~ /\d+(\.\d+){0,2}/)) { appVer = '1.0.0' }
+
+        // jpackage refuses to overwrite an existing bundle, so a repeated run would fail
+        // on the artifact left by the previous one.
+        def dmgFile = new File(dmgDestDir, "Ramus-${appVer}.dmg")
+        if (dmgFile.exists()) {
+            dmgFile.delete()
+            println "Removed previous ${dmgFile.name}"
+        }
+
+        // Choose a runtime image: prefer the jlink output, otherwise use the full JDK
+        def hasJlinkImage = runtimeImageDir.exists() && new File(runtimeImageDir, 'bin/java').exists()
+        def runtimePath = hasJlinkImage ? runtimeImageDir.absolutePath : javaHome
+        if (hasJlinkImage) {
+            println "Bundling the jlink runtime image from ${runtimeImageDir}"
+        } else {
+            println "Bundling the full JDK from ${javaHome} (no jlink image available)"
+        }
+
+        commandLine jpackageBin,
+                '--type', 'dmg',
+                '--dest', dmgDestDir.absolutePath,
+                '--name', 'Ramus',
+                '--app-version', appVer,
+                '--input', jpkgInputDir.absolutePath,
+                '--main-jar', 'ramus.jar',
+                '--main-class', 'com.ramussoft.local.Main',
+                '--icon', icnsFile.absolutePath,
+                '--vendor', 'Ramus Next Project',
+                '--copyright', 'Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy; (C) 2026 Stanislav Vinokur. GPL-3.0.',
+                '--description', 'Ramus Next - IDEF0 and DFD business process modeller.',
+                '--mac-package-identifier', 'com.stasvinokur.ramusnext',
+                '--runtime-image', runtimePath,
+                '--java-options', '-Dapple.laf.useScreenMenuBar=true',
+                '--java-options', '-Dapple.awt.application.name=Ramus'
     }
-    workingDir macWorkDir
-    def javaHome = (project.findProperty('packagingJavaHome') ?: project.findProperty('org.gradle.java.home') ?: System.getenv('JAVA_HOME') ?: System.getProperty('java.home'))
-    def jpackageBin = new File(javaHome, 'bin/jpackage').absolutePath
-    def rawVer = (project.version ?: '1.0.0').toString()
-    def appVer = rawVer.replaceAll(/[^0-9.]/,'')
-    if (!(appVer ==~ /\d+(\.\d+){0,2}/)) { appVer = '1.0.0' }
-    // Choose a runtime image: prefer the jlink output, otherwise use the full JDK
-    def runtimePath = (runtimeImageDir.exists() && new File(runtimeImageDir, 'bin/java').exists()) ? runtimeImageDir.absolutePath : javaHome
-    commandLine jpackageBin,
-            '--type', 'dmg',
-            '--dest', dmgDestDir.absolutePath,
-            '--name', 'Ramus',
-            '--app-version', appVer,
-            '--input', jpkgInputDir.absolutePath,
-            '--main-jar', 'ramus.jar',
-            '--main-class', 'com.ramussoft.local.Main',
-            '--icon', icnsFile.absolutePath,
-            '--vendor', 'Ramus Next Project',
-            '--copyright', 'Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy; (C) 2026 Stanislav Vinokur. GPL-3.0.',
-            '--description', 'Ramus Next - IDEF0 and DFD business process modeller.',
-            '--mac-package-identifier', 'com.stasvinokur.ramusnext',
-            '--runtime-image', runtimePath,
-            '--java-options', '-Dapple.laf.useScreenMenuBar=true',
-            '--java-options', '-Dapple.awt.application.name=Ramus'
 }
 
 tasks.register('macDmg') {
