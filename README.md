@@ -82,7 +82,7 @@ Download: the latest macOS DMG is available in this repository's GitHub Releases
 
 - macOS with developer tools (preinstalled utilities: `sips`, `iconutil`).
 - A full JDK in the **17-21** range with `jdeps`, `jlink`, and `jpackage` (not a JRE). Temurin 21 is recommended; JDK 22+ is unsupported, see Step 1 above.
-- Optional (icon conversion fallback): `dwebp` from the `webp` package (e.g., `brew install webp`).
+- Nothing else: the icon sources under `packaging/macos/AppIcon.appiconset` are plain PNGs converted by `sips`.
 
 Tip: This project supports local overrides without changing your shell’s `JAVA_HOME`.
 
@@ -192,12 +192,3 @@ Ramus Next is free software, released under the [GNU General Public License, ver
 - Copyright (C) 2026 Stanislav Vinokur - Ramus Next.
 
 Ramus Next adds to the original copyright notices; it does not replace them. Bundled third-party components retain their own licenses, listed in the application's About > Credits tab.
-
-## What’s new in 2.0.2
-
-- macOS app bundle and DMG packaging via Gradle + jpackage.
-- Proper Dock icon and Info.plist; icons are sourced from `packaging/macos/AppIcon.appiconset` and converted to `.icns` during build (uses macOS `sips`/`iconutil`; falls back to `dwebp` if needed).
-- Uses the macOS system menu bar (`apple.laf.useScreenMenuBar=true`).
-- macOS keyboard shortcuts use the Command key (⌘) via the platform menu shortcut mask (e.g., ⌘S, ⌘O, ⌘Z, ⌘⇧S, etc.).
-- Standalone distribution: bundles a Java runtime. Optionally uses `jlink` to create a minimized runtime; falls back to bundling the full JDK if `jlink` isn’t available.
-- Modernized build/toolchain: project compiles for Java 17 (upstream used Java 8) and builds with Gradle 8.5. Supported build JDKs are 17-21; packaging targets JDK 21 for the bundled runtime.
