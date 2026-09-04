@@ -199,6 +199,22 @@ tasks.register('jlinkImage') {
             detected = mods.unique().join(',')
             println "Detected modules: ${detected}"
         }
+        // Modules loaded through the service-provider mechanism rather than referenced in
+        // bytecode. jdeps cannot see them, so they must be added by hand or jlink drops them.
+        //
+        //   jdk.localedata - without it the image carries 5 locales instead of 1069: a user
+        //     who switches the UI to Russian or Ukrainian still gets "Jan" for January and
+        //     1,234.5 instead of 1 234,5, even though the interface strings translate. ~10 MB.
+        //   jdk.crypto.ec  - without it every HTTPS handshake fails outright, because modern
+        //     servers require ECDHE. Nothing in the app uses HTTPS today (the update check is
+        //     plain http and the About links open in the system browser), so this is insurance
+        //     against a silent failure the day any URL moves to https. ~1 MB.
+        def serviceModules = ['jdk.localedata', 'jdk.crypto.ec']
+        def missing = serviceModules.findAll { !(it in detected.split(',').collect { m -> m.trim() }) }
+        if (missing) {
+            detected = detected + ',' + missing.join(',')
+            println "Added service-loaded modules jdeps cannot detect: ${missing.join(',')}"
+        }
         try {
             exec {
                 commandLine jlinkBin,
