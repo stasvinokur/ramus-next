@@ -1,0 +1,17 @@
+group 'com.vitalex.ramus'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+dependencies {
+    implementation project(':idef0-common')
+    implementation project(':idef0-core')
+    implementation project(':idef0-report-core')
+    implementation project(':local-client')
+    implementation project(':gui-framework-common')
+    implementation project(':common')
+    implementation project(':data-framework-common')
+    implementation project(':core')
+    implementation 'com.barchart.wrap:barchart-wrap-browser-launcher:1.3.0-build001'
+    testImplementation group: 'junit', name: 'junit', version: '4.11'
+}

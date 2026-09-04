@@ -1,0 +1,40 @@
+plugins {
+    id 'java-library'
+}
+
+
+repositories {
+    mavenCentral()
+    maven {
+        url 'https://java.freehep.org/maven2'
+    }
+}
+
+dependencies {
+    implementation project(':data-framework-common')
+    implementation project(':common')
+    implementation project(':core')
+    implementation project(':core-simple-attributes')
+    implementation project(':gui-framework-core')
+    implementation project(':gui-framework-common')
+    implementation 'tablelayout:TableLayout:20050920'
+    implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
+    implementation project(':database-storage')
+
+    implementation project(':common')
+    implementation project(':core-simple-attributes')
+    implementation project(':gui-framework-core')
+    implementation project(':gui-framework-common')
+    implementation 'tablelayout:TableLayout:20050920'
+    implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
+
+    implementation project(':net-common')
+    implementation project(':core')
+    implementation project(':gui-qualifier')
+    implementation project(':idef0-common')
+    implementation project(':excel-import-export')
+    implementation project(':script-framework')
+    implementation 'com.caucho:hessian:4.0.38'
+    implementation files('libs/jnlp-1.2.jar')
+    testImplementation group: 'junit', name: 'junit', version: '4.11'
+}

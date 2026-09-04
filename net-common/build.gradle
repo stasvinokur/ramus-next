@@ -1,0 +1,14 @@
+group 'com.vitalex.ramus'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':data-framework-common')
+    implementation project(':common')
+    testImplementation group: 'junit', name: 'junit', version: '4.11'
+}

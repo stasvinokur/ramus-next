@@ -1,0 +1,87 @@
+plugins {
+    id 'com.bmuschko.izpack' version '3.2'
+}
+
+group 'com.vitalex.ramus'
+version '2.0.2'
+
+// Load optional local overrides from gradle-local.properties (gitignored)
+def localPropsFile = rootProject.file('gradle-local.properties')
+if (localPropsFile.exists()) {
+    def lp = new Properties()
+    localPropsFile.withInputStream { lp.load(it) }
+    lp.each { k, v ->
+        if (!project.hasProperty(k)) {
+            project.ext.set(k.toString(), v)
+        }
+    }
+    logger.lifecycle("Loaded local Gradle overrides from gradle-local.properties")
+}
+
+dependencies {
+    izpack 'org.codehaus.izpack:izpack-standalone-compiler:4.3.4'
+}
+
+
+allprojects {
+    apply plugin: 'java'
+
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://oss.sonatype.org/content/repositories/snapshots/"
+        }
+    }
+    
+    tasks.withType(JavaCompile) {
+        options.encoding = "UTF-8"
+    }
+}
+
+task copyJars(type: Copy, dependsOn: subprojects.jar) {
+    from(subprojects.jar)
+    into project.file('dest/full/lib/ramus')
+}
+
+task moveStartup{
+    doLast{
+        mkdir('dest/full/bin')
+        file('dest/full/lib/ramus/startup-1.0-SNAPSHOT.jar')
+        .renameTo('dest/full/bin/ramus-startup.jar')
+        //delete not needed files
+        file('dest/full/lib/ramus/chart-common-1.0-SNAPSHOT.jar').delete()
+        file('dest/full/lib/ramus/chart-core-1.0-SNAPSHOT.jar').delete()
+        file('dest/full/lib/ramus/chart-gui-1.0-SNAPSHOT.jar').delete()
+        file('dest/full/lib/ramus/client-1.0-SNAPSHOT.jar').delete()
+        file('dest/full/lib/ramus/local-client-1.0-SNAPSHOT.jar').delete()
+        file('dest/full/lib/ramus/net-common-1.0-SNAPSHOT.jar').delete()
+        file('dest/full/lib/ramus/server-1.0-SNAPSHOT.jar').delete()
+    }
+}
+
+task copyDeps(type: Copy) {
+    from(subprojects.configurations.runtimeClasspath)
+    into project.file('dest/full/lib/thirdparty')
+}
+
+task copyFiles(dependsOn: [copyJars, copyDeps, moveStartup])
+
+task windowsInstallerDocker(type:Exec, dependsOn: [copyFiles]) {
+    workingDir './dest'
+
+    commandLine './build-installer', '--docker'
+}
+
+task windowsInstaller(type:Exec, dependsOn: [copyFiles]) {
+    workingDir './dest'
+
+    commandLine './build-installer'
+}
+
+izpack {
+   // baseDir = file("$buildDir/assemble/izpack")
+    installFile = file('dest/izpack/ramus.xml')
+    outputFile = file("$buildDir/dest/full/ramus-2.0-installer.jar")
+    compression = 'deflate'
+    compressionLevel = 9
+}

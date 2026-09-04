@@ -1,0 +1,17 @@
+group 'com.vitalex.ramus'
+version '1.0-SNAPSHOT'
+
+dependencies {
+    implementation project(':database-storage')
+    implementation project(':data-framework-common')
+    implementation project(':core-simple-attributes')
+    implementation project(':common')
+    implementation project(':core')
+    implementation project(':net-common')
+    implementation project(':idef0-core')
+
+    implementation 'tablelayout:TableLayout:20050920'
+
+    implementation 'org.acegisecurity:acegi-security:1.0.7'
+    testImplementation group: 'junit', name: 'junit', version: '4.11'
+}

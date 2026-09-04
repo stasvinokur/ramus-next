@@ -1,0 +1,18 @@
+group 'com.vitalex.ramus'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+
+dependencies {
+
+    implementation project(':common')
+    implementation project(':core-simple-attributes')
+    implementation project(':data-framework-common')
+    implementation project(':gui-framework-common')
+    implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
+    implementation 'net.htmlparser.jericho:jericho-html:3.3'
+    implementation project(':report-core')
+    implementation project(':gui-qualifier')
+    implementation 'de.sciss:jsyntaxpane:1.0.0'
+    testImplementation group: 'junit', name: 'junit', version: '4.11'
+}
