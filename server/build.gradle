@@ -1,4 +1,4 @@
-group 'com.vitalex.ramus'
+group 'com.stasvinokur.ramusnext'
 version '1.0-SNAPSHOT'
 
 dependencies {

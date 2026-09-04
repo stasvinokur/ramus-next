@@ -5,8 +5,9 @@ SetCompressor /SOLID lzma
 # Defines
 !define REGKEY "SOFTWARE\$(^Name)"
 !define VERSION "2.0.2"
-!define COMPANY "Ramus Soft Group"
-!define URL http://www.ramussoftware.com/
+!define COMPANY "Ramus Next Project"
+!define URL https://github.com/stasvinokur/ramus-next
+!define COPYRIGHT "Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy; (C) 2026 Stanislav Vinokur. GPL-3.0."
 !define JRE_VERSION "1.6"
 !define JRE_URL "http://javadl.sun.com/webapps/download/GetFile/1.6.0_20-b02/windows-i586/jre-6u20-windows-i586.exe"
 
@@ -96,14 +97,14 @@ InstallDir "$PROGRAMFILES\Ramus"
 CRCCheck on
 XPStyle on
 ShowInstDetails hide
-VIProductVersion 2.0.1.0
+VIProductVersion 2.0.2.0
 VIAddVersionKey ProductName "Ramus"
 VIAddVersionKey ProductVersion "${VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
 VIAddVersionKey CompanyWebsite "${URL}"
 VIAddVersionKey FileVersion "${VERSION}"
-VIAddVersionKey FileDescription ""
-VIAddVersionKey LegalCopyright ""
+VIAddVersionKey FileDescription "Ramus Next - IDEF0 and DFD business process modeller"
+VIAddVersionKey LegalCopyright "${COPYRIGHT}"
 InstallDirRegKey HKLM "${REGKEY}" Path
 ShowUninstDetails hide
 RequestExecutionLevel admin

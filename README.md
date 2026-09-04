@@ -1,10 +1,10 @@
-# RAMUS
-
-### Project by Vitaliy Yakovchuk
-
-![Project Image](https://github.com/user-attachments/assets/72c8fcad-d8f1-4bc1-9186-ae4a1f1c9cf2)
+# Ramus Next
 
 **Java-based IDEF0 & DFD Modeler**
+
+Maintained by [Stanislav Vinokur](https://github.com/stasvinokur).
+
+Ramus Next continues [Ramus](https://ramussoftware.com/), created by Vitaliy Yakovchuk and Oleksiy Chizhevskiy (2005-2025), with macOS packaging and integration work by [Vladislav Pavlik](https://github.com/Inv1x). Released under the [GNU General Public License, version 3](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
 <img width="1792" alt="Screenshot 2019-11-18 at 11 14 26" src="https://user-images.githubusercontent.com/2261228/69039713-23c56d00-09f5-11ea-99c5-b6714efe3037.png">
 
@@ -16,14 +16,16 @@
 
 ### Step 1: Install JDK
 
-Download and install the [Oracle JDK](http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html).
+Install a **full JDK in the 17-21 range** (not a JRE). [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21) is the recommended build.
+
+> JDK 22 and newer will not work. The Gradle 8.5 wrapper only runs on Java 21 and below, and from JDK 23 onward `:report-core:compileJava` fails outright because `Thread.stop()` was removed from the JDK (`JSSPReportEngine.java:99`, `JSSPDocBookReportEngine.java:81`).
 
 ### Step 2: Run the Application
 
 In the console, navigate to the project folder and run:
 
 ```bash
-./gradlew runLocal
+./gradlew :local-client:runLocal
 ```
 
 ### Step 3: Test the Application
@@ -33,19 +35,19 @@ In the console, navigate to the project folder and run:
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/Vitaliy-Yakovchuk/ramus.git
+   git clone https://github.com/stasvinokur/ramus-next.git
    ```
 
 2. **Navigate to the Project Folder:**
 
    ```bash
-   cd ramus
+   cd ramus-next
    ```
 
 3. **Run the Application:**
 
    ```bash
-   ./gradlew runLocal
+   ./gradlew :local-client:runLocal
    ```
 
 ### Optional: Create a Shortcut to Launch the Application
@@ -58,7 +60,7 @@ In the console, navigate to the project folder and run:
 2. Add the following alias to easily launch the application:
 
    ```bash
-   alias ramus='cd ~/path/to/ramus/folder/ && ./gradlew runLocal &'
+   alias ramus='cd ~/path/to/ramus-next/ && ./gradlew :local-client:runLocal &'
    ```
 
 3. Save the file and reload it:
@@ -69,18 +71,17 @@ In the console, navigate to the project folder and run:
 
 4. Now, you can simply run `ramus` in the terminal to launch the application.
 
-# MacOS (Optimized Fork)
+## macOS
 
-This is a macOS‑optimized fork of the Ramus IDEF0/DFD modeling tool. It focuses on native macOS integration and packaging. Windows support is not a goal here and may not work properly.
+Ramus Next focuses on native macOS integration and packaging. The Windows installer and Java Web Start
+descriptors are inherited from upstream, are not maintained here, and are not expected to work.
 
-Download: the latest macOS DMG is available in this repository’s GitHub Releases section.
-
-License: see LICENSE in this repository (unchanged from upstream).
+Download: the latest macOS DMG is available in this repository's GitHub Releases section.
 
 ## Requirements (macOS)
 
 - macOS with developer tools (preinstalled utilities: `sips`, `iconutil`).
-- JDK 21+ with `jdeps`, `jlink`, and `jpackage` (full JDK, not JRE). For best results, install a standard Temurin/Oracle JDK.
+- A full JDK in the **17-21** range with `jdeps`, `jlink`, and `jpackage` (not a JRE). Temurin 21 is recommended; JDK 22+ is unsupported, see Step 1 above.
 - Optional (icon conversion fallback): `dwebp` from the `webp` package (e.g., `brew install webp`).
 
 Tip: This project supports local overrides without changing your shell’s `JAVA_HOME`.
@@ -98,7 +99,7 @@ open local-client/build/mac-app/Ramus.app
 
 ```
 ./gradlew :local-client:macDmg
-open dest-macos
+open dest/macos
 ```
 
 The DMG contains a standalone app that does not require users to install Java.
@@ -152,6 +153,16 @@ Note: the dev run uses your local Java installation; for the full native experie
 
 Contributions are very welcome—bug reports, macOS improvements, docs, and packaging tweaks. Please open issues or pull requests.
 
+## Copyright and License
+
+Ramus Next is free software, released under the [GNU General Public License, version 3](https://www.gnu.org/licenses/gpl-3.0.en.html). The full text is in [LICENSE](LICENSE).
+
+- Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy - original Ramus.
+- macOS version modifications by [Vladislav Pavlik](https://github.com/Inv1x).
+- Copyright (C) 2026 Stanislav Vinokur - Ramus Next.
+
+Ramus Next adds to the original copyright notices; it does not replace them. Bundled third-party components retain their own licenses, listed in the application's About > Credits tab.
+
 ## What’s new in 2.0.2
 
 - macOS app bundle and DMG packaging via Gradle + jpackage.
@@ -159,4 +170,4 @@ Contributions are very welcome—bug reports, macOS improvements, docs, and pack
 - Uses the macOS system menu bar (`apple.laf.useScreenMenuBar=true`).
 - macOS keyboard shortcuts use the Command key (⌘) via the platform menu shortcut mask (e.g., ⌘S, ⌘O, ⌘Z, ⌘⇧S, etc.).
 - Standalone distribution: bundles a Java runtime. Optionally uses `jlink` to create a minimized runtime; falls back to bundling the full JDK if `jlink` isn’t available.
-- Modernized build/toolchain: project compiles for Java 17 (upstream used Java 8) and uses a recent Gradle (8.x). Packaging targets JDK 21 for the bundled runtime.
+- Modernized build/toolchain: project compiles for Java 17 (upstream used Java 8) and builds with Gradle 8.5. Supported build JDKs are 17-21; packaging targets JDK 21 for the bundled runtime.

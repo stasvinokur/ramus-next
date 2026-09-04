@@ -9,12 +9,14 @@
     -->
     <info>
         <appname>Ramus</appname>
-        <appversion>1.2.8</appversion>
-		<appsubpath>ramus-1.2.8</appsubpath>
+        <appversion>2.0.2</appversion>
+		<appsubpath>ramus-2.0.2</appsubpath>
 		<authors>
-			<author name="Ramus soft group" email="Vitaliy.Yakovchuk@gmail.com"/>
+			<author name="Vitaliy Yakovchuk, Oleksiy Chizhevskiy (original Ramus)" email=""/>
+			<author name="Vladislav Pavlik (macOS version)" email=""/>
+			<author name="Stanislav Vinokur (Ramus Next)" email=""/>
 		</authors>
-		<url>http://ramussoftware.com/</url>
+		<url>https://github.com/stasvinokur/ramus-next</url>
     </info>
     
     <!-- 

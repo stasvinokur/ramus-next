@@ -11,9 +11,9 @@
 
     <information>
         <title>Season Client Application</title>
-        <vendor>Ramus Soft Group</vendor>
+        <vendor>Ramus Next Project</vendor>
         <description>Season Client Application</description>
-        <homepage href="http://ramussoft.co.cc/"/>
+        <homepage href="https://github.com/stasvinokur/ramus-next"/>
         <description kind="short">Програмне забезпечення для роботи з календарними планами в сільському господарстві.
         </description>
         <offline-allowed/>

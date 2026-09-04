@@ -250,10 +250,13 @@ public class AboutDialog extends JDialog {
         sb.append(Metadata.getApplicationVersion());
         sb.append("<br><br>");
 
-        sb.append("MacOS Version modifications by <a href=\"https://github.com/Inv1x/\">Vladislav Pavlik</a><br><br>"
-                + "Original copyright &copy; 2005 - 2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy. <br><br>"
+        sb.append("Maintained by <a href=\"https://github.com/stasvinokur\">Stanislav Vinokur</a> as <a href=\"https://github.com/stasvinokur/ramus-next\">ramus-next</a><br><br>"
+                + "Copyright &copy; 2026 Stanislav Vinokur.<br>"
+                + "Original Ramus copyright &copy; 2005 - 2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy.<br>"
+                + "MacOS version modifications by <a href=\"https://github.com/Inv1x/\">Vladislav Pavlik</a>.<br><br>"
                 + "License <a href=\"https://www.gnu.org/licenses/gpl-3.0.en.html\">GNU GENERAL PUBLIC LICENSE Version 3</a><br><br>"
-                + "Visit <a href=\"http://ramussoftware.com/\">http://ramussoftware.com/</a><br><br>"
+                + "Project home: <a href=\"https://github.com/stasvinokur/ramus-next\">github.com/stasvinokur/ramus-next</a><br><br>"
+                + "Original project: <a href=\"https://ramussoftware.com/\">ramussoftware.com</a><br><br>"
                 + "</font></body></html>");
         return sb.toString();
     }

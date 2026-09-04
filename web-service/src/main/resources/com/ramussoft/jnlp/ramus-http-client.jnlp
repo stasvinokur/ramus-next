@@ -11,9 +11,9 @@
 
     <information>
         <title>Ramus Http Client Application</title>
-        <vendor>Ramus Soft Group</vendor>
+        <vendor>Ramus Next Project</vendor>
         <description>Ramus Client Application with http hessian protocol</description>
-        <homepage href="http://ramussoft.co.cc/"/>
+        <homepage href="https://github.com/stasvinokur/ramus-next"/>
         <description kind="short">Програмне забезпечення для редагування класифікаторів,
             моделювання бізнес-процесів, тощо.
         </description>

@@ -2,7 +2,7 @@ plugins {
     id 'com.bmuschko.izpack' version '3.2'
 }
 
-group 'com.vitalex.ramus'
+group 'com.stasvinokur.ramusnext'
 version '2.0.2'
 
 // Load optional local overrides from gradle-local.properties (gitignored)
