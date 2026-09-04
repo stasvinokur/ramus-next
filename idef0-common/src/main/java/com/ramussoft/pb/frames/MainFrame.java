@@ -896,7 +896,7 @@ public class MainFrame implements ActionListener {
     }
 
     protected String getProgramName() {
-        return "Ramus";
+        return Metadata.getApplicationName();
     }
 
     public class Group {

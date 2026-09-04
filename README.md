@@ -92,7 +92,7 @@ Tip: This project supports local overrides without changing your shell’s `JAVA
 
 ```
 ./gradlew :local-client:createMacApp
-open local-client/build/mac-app/Ramus.app
+open local-client/build/mac-app/RamusNext.app
 ```
 
 2) Build a standalone DMG (recommended)
@@ -102,7 +102,9 @@ open local-client/build/mac-app/Ramus.app
 open dest/macos
 ```
 
-The DMG contains a standalone app that does not require users to install Java.
+The DMG contains a standalone app that does not require users to install Java. On disk the bundle is
+`RamusNext.app` and the DMG is `RamusNext-2.0.2.dmg`; the application presents itself as **Ramus Next**
+in the macOS menu bar.
 
 Alternatively, download the latest DMG from this repository’s GitHub Releases section.
 
@@ -128,7 +130,7 @@ Alternatively, you can set `org.gradle.java.home` in `gradle.properties` (also i
 ## Build Tasks Summary
 
 - `:local-client:createMacApp`
-  - Creates a dev `.app` under `local-client/build/mac-app/Ramus.app`.
+  - Creates a dev `.app` under `local-client/build/mac-app/RamusNext.app`.
   - Uses a generated `.icns` and sets Dock icon flags for a native look.
 
 - `:local-client:macDmg`
@@ -152,6 +154,34 @@ Note: the dev run uses your local Java installation; for the full native experie
 ## Contributing
 
 Contributions are very welcome—bug reports, macOS improvements, docs, and packaging tweaks. Please open issues or pull requests.
+
+## Upgrading from Ramus
+
+Ramus Next stores its settings in a directory named after the application, so the rename moves it:
+
+| Platform | Before | After |
+|---|---|---|
+| macOS | `~/Library/Application Support/Ramus` | `~/Library/Application Support/Ramus Next` |
+| Windows | `%APPDATA%\Ramussoft\Ramus` | `%APPDATA%\Ramussoft\Ramus Next` |
+| Linux | `~/.ramus` | `~/.ramus-next` |
+
+Nothing is deleted — the old directory is simply ignored, and Ramus Next starts with defaults.
+**To keep your window layout, preferences and dictionaries, rename the directory by hand before the
+first launch:**
+
+```bash
+mv ~/Library/Application\ Support/Ramus ~/Library/Application\ Support/"Ramus Next"
+```
+
+Your models are unaffected: the `.rsf` format did not change, and files stay readable by both the old
+and the new build in either direction.
+
+If you would rather not move anything, two JVM properties override the defaults. Pass them as JVM
+arguments, not application arguments:
+
+- `-Duser.ramus.options=/path/to/dir` pins the settings directory to an explicit path.
+- `-Duser.ramus.application.name=Ramus` restores the old name everywhere it is derived, including the
+  settings directory and the window titles.
 
 ## Copyright and License
 

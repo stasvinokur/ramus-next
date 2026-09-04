@@ -38,11 +38,11 @@
 -->
 
 <shortcuts>
-<programGroup defaultName="Ramus" location="applications"/>
+<programGroup defaultName="Ramus Next" location="applications"/>
 
 	<shortcut
 	  type="Application"
-	  name="Ramus"
+	  name="Ramus Next"
 	  programGroup="yes"
           desktop="no"
           applications="no"
@@ -65,7 +65,7 @@
 	</shortcut>
 
  <shortcut
-     name="Ramus Web Navigator"
+     name="Ramus Next Web Navigator"
      type="Application"
 	  programGroup="yes"
           desktop="no"
@@ -81,14 +81,14 @@
 	  workingDirectory="$INSTALL_PATH/bin"
 	  encoding="UTF-8"
 	  terminal="false"
-	  description="Ramus Web Navigator"
+	  description="Ramus Next Web Navigator"
 	  >
           
      <createForPack name="Core" />
    </shortcut>
 
 	<shortcut
-     name="Ramus Uninstaller"
+     name="Ramus Next Uninstaller"
      type="Application"
 	  programGroup="yes"
           desktop="no"
@@ -104,7 +104,7 @@
 	  workingDirectory="$INSTALL_PATH/Uninstaller"
 	  encoding="UTF-8"
 	  terminal="false"
-	  description="Ramus Uninstaller"
+	  description="Ramus Next Uninstaller"
 	  >
           
      <createForPack name="Core" />

@@ -75,7 +75,7 @@ public class Navigator {
                         response.setContentType("text/html; charset=" + ENCODING);
                         PrintStream pw = response.getWriter();
                         pw.println("<html><head>");
-                        pw.println("<title>Ramus Web Navigator</title>");
+                        pw.println("<title>Ramus Next Web Navigator</title>");
                         pw.println("</head><body>");
                         for (FileNavigator navigator : navigators) {
                             pw.println("<a href=\"" + navigator.getPrefix()

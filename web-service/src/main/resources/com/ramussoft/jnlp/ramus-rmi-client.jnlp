@@ -10,9 +10,9 @@
     </security>
 
     <information>
-        <title>Ramus Client Application</title>
+        <title>Ramus Next Client Application</title>
         <vendor>Ramus Next Project</vendor>
-        <description>Ramus Client Application</description>
+        <description>Ramus Next Client Application</description>
         <homepage href="https://github.com/stasvinokur/ramus-next"/>
         <description kind="short">Програмне забезпечення для редагування класифікаторів,
             моделювання бізнес-процесів, тощо.

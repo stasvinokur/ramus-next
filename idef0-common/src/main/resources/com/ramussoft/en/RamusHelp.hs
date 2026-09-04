@@ -6,7 +6,7 @@ PUBLIC "-//Sun Microsystems Inc.//DTD JavaHelp HelpSet Version 1.0//EN"
 <helpset version="1.0">
 
   <!-- title -->
-  <title>Ramus Help</title>
+  <title>Ramus Next Help</title>
 
   <!-- maps -->
   <maps>

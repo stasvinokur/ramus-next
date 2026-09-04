@@ -6,6 +6,7 @@ import java.util.List;
 import javax.swing.JDialog;
 
 import com.ramussoft.common.Engine;
+import com.ramussoft.common.Metadata;
 import com.ramussoft.common.Plugin;
 import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GUIPlugin;
@@ -17,8 +18,8 @@ public class Main extends Runner {
         // Set macOS-specific system properties
         if (System.getProperty("os.name").toLowerCase().contains("mac")) {
             System.setProperty("apple.laf.useScreenMenuBar", "true");
-            System.setProperty("apple.awt.application.name", "Ramus");
-            System.setProperty("com.apple.mrj.application.apple.menu.about.name", "Ramus MacOS");
+            System.setProperty("apple.awt.application.name", Metadata.getApplicationName());
+            System.setProperty("com.apple.mrj.application.apple.menu.about.name", Metadata.getApplicationName());
         }
 
         new Main().load(args);

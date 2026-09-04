@@ -7,6 +7,14 @@ plugins {
 group 'com.stasvinokur.ramusnext'
 version '2.0.2'
 
+// Product naming, single source of truth for the whole build.
+// appName is space-free and names everything that lands on disk: the .app bundle, the DMG,
+// the mounted volume, the launcher inside Contents/MacOS and the .icns.
+// appDisplayName is what the user reads in the menu bar. It may contain spaces and must stay
+// under 16 characters, which is the only thing jpackage checks about --mac-package-name.
+def appName = 'RamusNext'
+def appDisplayName = 'Ramus Next'
+
 repositories {
     mavenCentral()
 }
@@ -41,7 +49,7 @@ task runLocal(type: JavaExec) {
 
 application {
     mainClass = 'com.ramussoft.local.Main'
-    applicationName = 'Ramus'
+    applicationName = appName
 }
 
 shadowJar {
@@ -60,7 +68,7 @@ shadowJar {
 
 def macWorkDir = file("${buildDir}/macos")
 def iconsetDir = file("${macWorkDir}/AppIcon.iconset")
-def icnsFile = file("${macWorkDir}/Ramus.icns")
+def icnsFile = file("${macWorkDir}/${appName}.icns")
 def jpkgInputDir = file("${macWorkDir}/jpackage-input")
 def dmgDestDir = file("${rootProject.projectDir}/dest/macos")
 def runtimeImageDir = file("${macWorkDir}/runtime")
@@ -228,7 +236,7 @@ tasks.register('jpackageDmg', Exec) {
 
         // jpackage refuses to overwrite an existing bundle, so a repeated run would fail
         // on the artifact left by the previous one.
-        def dmgFile = new File(dmgDestDir, "Ramus-${appVer}.dmg")
+        def dmgFile = new File(dmgDestDir, "${appName}-${appVer}.dmg")
         if (dmgFile.exists()) {
             dmgFile.delete()
             println "Removed previous ${dmgFile.name}"
@@ -246,7 +254,7 @@ tasks.register('jpackageDmg', Exec) {
         commandLine jpackageBin,
                 '--type', 'dmg',
                 '--dest', dmgDestDir.absolutePath,
-                '--name', 'Ramus',
+                '--name', appName,
                 '--app-version', appVer,
                 '--input', jpkgInputDir.absolutePath,
                 '--main-jar', 'ramus.jar',
@@ -256,9 +264,15 @@ tasks.register('jpackageDmg', Exec) {
                 '--copyright', 'Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy; (C) 2026 Stanislav Vinokur. GPL-3.0.',
                 '--description', 'Ramus Next - IDEF0 and DFD business process modeller.',
                 '--mac-package-identifier', 'com.stasvinokur.ramusnext',
+                '--mac-package-name', appDisplayName,
                 '--runtime-image', runtimePath,
-                '--java-options', '-Dapple.laf.useScreenMenuBar=true',
-                '--java-options', '-Dapple.awt.application.name=Ramus'
+                '--java-options', '-Dapple.laf.useScreenMenuBar=true'
+        // Deliberately NOT passing -Dapple.awt.application.name here: jpackage splits every
+        // --java-options value on whitespace when it writes the .cfg, so a name containing a
+        // space becomes two entries and the second one ("Next") reaches the JVM as a main class,
+        // making the packaged app fail to start with ClassNotFoundException. The bundled app
+        // takes its menu bar name from CFBundleName (set via --mac-package-name) anyway, and
+        // Main.java sets the property at runtime for the unpackaged case.
     }
 }
 
@@ -270,7 +284,7 @@ tasks.register('macDmg') {
 
 task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
     // Resolve bundle directories eagerly so Gradle doesn't treat DirectoryProperty objects as strings.
-    def appDir = new File(buildDir, 'mac-app/Ramus.app')
+    def appDir = new File(buildDir, "mac-app/${appName}.app")
     def contentsDir = new File(appDir, 'Contents')
     def macOSDir = new File(contentsDir, 'MacOS')
     def resourcesDir = new File(contentsDir, 'Resources')
@@ -284,13 +298,9 @@ task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
         macOSDir.mkdirs()
         resourcesDir.mkdirs()
 
-        // Copy app icon (prefer generated .icns)
-        def iconFile = file("${macWorkDir}/Ramus.icns")
-        if (!iconFile.exists()) {
-            iconFile = file('src/main/resources/Ramus.icns')
-        }
-        if (iconFile.exists()) {
-            copy { from iconFile; into resourcesDir }
+        // Copy app icon (produced by makeIcns, which this task depends on)
+        if (icnsFile.exists()) {
+            copy { from icnsFile; into resourcesDir }
         }
 
         // Create Info.plist
@@ -300,9 +310,9 @@ task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Ramus</string>
+    <string>${appDisplayName}</string>
     <key>CFBundleDisplayName</key>
-    <string>Ramus</string>
+    <string>${appDisplayName}</string>
     <key>CFBundleIdentifier</key>
     <string>com.stasvinokur.ramusnext</string>
     <key>CFBundleVersion</key>
@@ -310,9 +320,9 @@ task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
     <key>CFBundleShortVersionString</key>
     <string>2.0</string>
     <key>CFBundleExecutable</key>
-    <string>Ramus</string>
+    <string>${appName}</string>
     <key>CFBundleIconFile</key>
-    <string>Ramus</string>
+    <string>${appName}</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundlePackageType</key>
@@ -329,11 +339,11 @@ task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
 </plist>"""
 
         // Create executable script
-        def executable = new File(macOSDir, 'Ramus')
+        def executable = new File(macOSDir, appName)
         executable.text = """#!/bin/bash
 cd "\$(dirname "\$0")"
 # Use the app's icon in the Dock instead of the Java default
-exec java -Xdock:name=Ramus -Xdock:icon="../Resources/Ramus.icns" -jar ramus.jar "\$@"
+exec java -Xdock:name="${appDisplayName}" -Xdock:icon="../Resources/${appName}.icns" -jar ramus.jar "\$@"
 """
         executable.setExecutable(true)
 

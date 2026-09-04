@@ -61,7 +61,7 @@ public class ShortcutsPatch {
 		dest = new File(home + "/.local/share/applications");
 
 		for (File file : dest.listFiles()) {
-			if (file.getName().startsWith("Ramus-")) {
+			if (file.getName().startsWith("Ramus")) {
 				patchLink(file, args[0]);
 			}
 		}

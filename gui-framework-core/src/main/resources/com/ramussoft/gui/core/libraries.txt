@@ -1,4 +1,4 @@
-Ramus uses additional libraries:
+Ramus Next uses additional libraries:
 
 jericho-html.jar - Jericho HTML Parser (http://jerichohtml.sourceforge.net/) released under GNU Lesser General Public License (LGPL) (http://www.gnu.org/licenses/lgpl.html)
 dockingFramesCommon.jar, dockingFramesCore.jar - Docking Frames (http://dock.javaforge.com/) released under GNU Lesser General Public License (LGPL) Version 2.1 (http://www.gnu.org/licenses/lgpl-2.1.html)

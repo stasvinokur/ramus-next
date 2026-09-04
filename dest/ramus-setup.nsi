@@ -1,4 +1,4 @@
-Name "Ramus"
+Name "Ramus Next"
 
 SetCompressor /SOLID lzma
 
@@ -20,7 +20,7 @@ SetCompressor /SOLID lzma
 !define MUI_STARTMENUPAGE_NODISABLE
 !define MUI_STARTMENUPAGE_REGISTRY_KEY ${REGKEY}
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME StartMenuGroup
-!define MUI_STARTMENUPAGE_DEFAULTFOLDER "Ramus"
+!define MUI_STARTMENUPAGE_DEFAULTFOLDER "Ramus Next"
 !define MUI_FINISHPAGE_RUN_PARAMETERS install
 !define MUI_UNFINISHPAGE_NOAUTOCLOSE
 
@@ -93,12 +93,12 @@ LicenseLangString MUILicense ${LANG_ENGLISH} "LICENSE"
 
 # Installer attributes
 OutFile full/ramus-2.0.2-setup.exe
-InstallDir "$PROGRAMFILES\Ramus"
+InstallDir "$PROGRAMFILES\Ramus Next"
 CRCCheck on
 XPStyle on
 ShowInstDetails hide
 VIProductVersion 2.0.2.0
-VIAddVersionKey ProductName "Ramus"
+VIAddVersionKey ProductName "Ramus Next"
 VIAddVersionKey ProductVersion "${VERSION}"
 VIAddVersionKey CompanyName "${COMPANY}"
 VIAddVersionKey CompanyWebsite "${URL}"
@@ -128,7 +128,7 @@ StrCpy $2 "$TEMP\Java Runtime Environment.exe"
         nsisdl::download /TIMEOUT=30000 ${JRE_URL} $2
         Pop $R0 ;Get the return value
                 StrCmp $R0 "success" +3
-                MessageBox MB_OK "Download failed: $R0, please install Java Runtime Environment manually from http://java.com, and try to install Ramus again"
+                MessageBox MB_OK "Download failed: $R0, please install Java Runtime Environment manually from http://java.com, and try to install Ramus Next again"
                 Quit
 ExecWait '"$TEMP\Java Runtime Environment.exe" /s /v\"/qn REBOOT=Suppress JAVAUPDATE=0 WEBSTARTICON=0\"' $0
 Delete $2
@@ -223,8 +223,8 @@ RmDir /r $INSTDIR
     #!insertmacro MUI_STARTMENU_WRITE_END
 
     SetOutPath $SMPROGRAMS\$StartMenuGroup
-    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\Ramus.lnk" "$javawPath" '-jar "$INSTDIR\bin\ramus-startup.jar" --close-startup' "$INSTDIR\bin\icon.ico" "0"
-    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\Ramus Web Navigator.lnk" "$javawPath" '-cp "$INSTDIR\bin\ramus-startup.jar" com.ramussoft.Startup --close-startup com.ramussoft.navigator.ProjectNavigator' "$INSTDIR\bin\navigator.ico" "0"
+    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\Ramus Next.lnk" "$javawPath" '-jar "$INSTDIR\bin\ramus-startup.jar" --close-startup' "$INSTDIR\bin\icon.ico" "0"
+    CreateShortcut "$SMPROGRAMS\$StartMenuGroup\Ramus Next Web Navigator.lnk" "$javawPath" '-cp "$INSTDIR\bin\ramus-startup.jar" com.ramussoft.Startup --close-startup com.ramussoft.navigator.ProjectNavigator' "$INSTDIR\bin\navigator.ico" "0"
 
 
 ;IntCmp $LANGUAGE ${LANG_UKRAINIAN} 0 nukr nukr
@@ -237,7 +237,7 @@ RmDir /r $INSTDIR
 ;nrus:
 
 
-    WriteRegStr HKLM "Software\Classes\Ramusfile0" "" '"Ramus File"'
+    WriteRegStr HKLM "Software\Classes\Ramusfile0" "" '"Ramus Next File"'
     WriteRegStr HKLM "Software\Classes\Ramusfile0\shell\open\command" "" 'javaw -jar "$INSTDIR\bin\ramus-startup.jar" --close-startup "%1"'
     WriteRegStr HKLM "Software\Classes\Ramusfile0\DefaultIcon" "" "$INSTDIR\bin\icon.ico"
     WriteRegStr HKLM "Software\Classes\.rsf" "" "RamusFile0"
@@ -501,7 +501,7 @@ Section "Uninstall"
     ExecWait 'javaw -cp "$INSTDIR\bin\ramus-startup.jar" com.ramussoft.Startup com.ramussoft.navigator.ProjectNavigator --close' $0
     RmDir /r /REBOOTOK $INSTDIR
     DeleteRegValue HKLM "${REGKEY}\Components" Main
-    RmDir /r "$SMPROGRAMS\Ramus"
+    RmDir /r "$SMPROGRAMS\Ramus Next"
     DeleteRegKey HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$(^Name)"
     #Delete /REBOOTOK "$SMPROGRAMS\$StartMenuGroup\Uninstall $(^Name).lnk"
     Delete /REBOOTOK $INSTDIR\uninstall.exe

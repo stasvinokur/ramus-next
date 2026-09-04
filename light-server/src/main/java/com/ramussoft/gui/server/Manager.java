@@ -50,7 +50,7 @@ public class Manager {
      * @param args
      */
     public static void main(String[] args) {
-        System.setProperty("user.ramus.application.name", "Ramus Light Server");
+        System.setProperty("user.ramus.application.name", "Ramus Next Light Server");
         try {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (ClassNotFoundException e1) {

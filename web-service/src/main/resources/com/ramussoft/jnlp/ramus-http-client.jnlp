@@ -10,9 +10,9 @@
     </security>
 
     <information>
-        <title>Ramus Http Client Application</title>
+        <title>Ramus Next Http Client Application</title>
         <vendor>Ramus Next Project</vendor>
-        <description>Ramus Client Application with http hessian protocol</description>
+        <description>Ramus Next Client Application with http hessian protocol</description>
         <homepage href="https://github.com/stasvinokur/ramus-next"/>
         <description kind="short">Програмне забезпечення для редагування класифікаторів,
             моделювання бізнес-процесів, тощо.

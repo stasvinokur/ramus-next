@@ -2,7 +2,7 @@ package com.ramussoft.common;
 
 public class Metadata {
 
-    private static final String APPLICATION_NAME = "Ramus";
+    private static final String APPLICATION_NAME = "Ramus Next";
 
     private static final String APPLICATION_VERSION = "2.0.2";
 
