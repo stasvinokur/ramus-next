@@ -88,7 +88,7 @@ public class TableToXML {
 
         @Override
         public String toString(Object object) throws SQLException {
-            return XMLToTable.DATE_FORMAT.format(object);
+            return XMLToTable.formatDate(object);
         }
 
     }
@@ -118,6 +118,64 @@ public class TableToXML {
         this.stream = stream;
         this.tableName = tableName;
         this.prefix = prefix;
+    }
+
+    /**
+     * The token written into the <code>type</code> attribute of every field.
+     *
+     * <p>This used to be {@link ResultSetMetaData#getColumnTypeName}, that is, whatever the
+     * JDBC driver of the day called the type - and that same string is what
+     * {@link XMLToTable} dispatches on when the file is read back. H2 2.x renames four of
+     * the eight types this schema uses: CLOB becomes CHARACTER LARGE OBJECT, CHAR becomes
+     * CHARACTER, VARBINARY becomes BINARY VARYING and DOUBLE becomes DOUBLE PRECISION. So
+     * merely upgrading the driver would have produced files that no build could read, this
+     * one included.
+     *
+     * <p>{@link Types} is a JDBC constant and does not move, so the token is derived from it
+     * instead. The names returned are deliberately the ones H2 1.3.163 reported, which keeps
+     * the output byte for byte what it was and keeps the file readable by earlier releases.
+     */
+    static String canonicalTypeName(ResultSetMetaData meta, int column)
+            throws SQLException {
+        switch (meta.getColumnType(column)) {
+            case Types.CHAR:
+            case Types.NCHAR:
+                return "CHAR";
+            case Types.VARCHAR:
+            case Types.LONGVARCHAR:
+            case Types.NVARCHAR:
+            case Types.LONGNVARCHAR:
+            case Types.CLOB:
+            case Types.NCLOB:
+                return "CLOB";
+            case Types.TINYINT:
+            case Types.SMALLINT:
+            case Types.INTEGER:
+                return "INTEGER";
+            case Types.BIGINT:
+                return "BIGINT";
+            case Types.BIT:
+            case Types.BOOLEAN:
+                return "BOOLEAN";
+            case Types.REAL:
+            case Types.FLOAT:
+            case Types.DOUBLE:
+            case Types.NUMERIC:
+            case Types.DECIMAL:
+                return "DOUBLE";
+            case Types.DATE:
+            case Types.TIME:
+            case Types.TIMESTAMP:
+                return "TIMESTAMP";
+            case Types.BINARY:
+            case Types.VARBINARY:
+                return "VARBINARY";
+            case Types.BLOB:
+            case Types.LONGVARBINARY:
+                return "BLOB";
+            default:
+                return meta.getColumnTypeName(column);
+        }
     }
 
     public void store() throws IOException, TransformerConfigurationException,
@@ -150,8 +208,8 @@ public class TableToXML {
                             .toString(i));
                     attrs.addAttribute("", "", "name", "CDATA", meta
                             .getColumnName(i + 1));
-                    attrs.addAttribute("", "", "type", "CDATA", meta
-                            .getColumnTypeName(i + 1));
+                    attrs.addAttribute("", "", "type", "CDATA",
+                            canonicalTypeName(meta, i + 1));
                     startElement("field");
                     attrs.clear();
                     endElement("field");
