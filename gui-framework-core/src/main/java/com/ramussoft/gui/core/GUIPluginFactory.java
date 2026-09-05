@@ -4,7 +4,6 @@ import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -37,7 +36,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 
 import bibliothek.gui.DockController;
 import bibliothek.gui.dock.common.CContentArea;
@@ -58,6 +56,7 @@ import bibliothek.gui.dock.common.event.CFocusListener;
 import bibliothek.gui.dock.common.intern.CDockable;
 import bibliothek.gui.dock.common.intern.DefaultCDockable;
 import bibliothek.gui.dock.common.intern.action.CDecorateableAction;
+import bibliothek.gui.dock.common.theme.ThemeMap;
 import bibliothek.gui.dock.title.DockTitle.Orientation;
 import bibliothek.util.xml.XElement;
 
@@ -401,12 +400,6 @@ public class GUIPluginFactory extends AbstractGUIPluginFactory {
             }
         };
 
-        UIManager.put(
-                "TextArea.font",
-                new Font(Options.getString("TEXT_AREA_DEF_FONT",
-                        "Tymes New Roman"), 0, Options.getInteger(
-                        "TEXT_AREA_DEF_FONT_SIZE", 14)));
-
         for (GUIPlugin p : plugins) {
             p.setFramework(framework);
             if (p instanceof ViewPlugin) {
@@ -469,10 +462,6 @@ public class GUIPluginFactory extends AbstractGUIPluginFactory {
         preferenciesPlugin.setFramework(framework);
         list.add(preferenciesPlugin);
 
-        LookAndFeelPlugin lookAndFeelPlugin = new LookAndFeelPlugin();
-        lookAndFeelPlugin.setFramework(framework);
-        list.add(lookAndFeelPlugin);
-
         engine.setPluginProperty("GUI", "PluginList", plugins);
 
         aboutPlugin.setFramework(framework);
@@ -507,6 +496,21 @@ public class GUIPluginFactory extends AbstractGUIPluginFactory {
         } catch (IOException e2) {
             e2.printStackTrace();
         }
+
+        // AFTER readXML, and that is the whole point. The docking library stores the chosen
+        // theme inside workspaces.xml as an ApplicationResource:
+        //
+        //     <resource name="dock.ui.ThemeMap"><key>smooth</key></resource>
+        //
+        // so readXML above restores it. Two setTheme calls used to sit commented out inside
+        // initContent(), which runs earlier - uncommenting either would have been silently
+        // undone for every user who has ever started the application. Setting it here keeps
+        // the saved panel arrangement and simply overwrites the theme, which is written back
+        // on the next save.
+        //
+        // smooth is the library's own default: the blue gradient title bars. Flat is the
+        // one that does not look like 2012.
+        control.setTheme(ThemeMap.KEY_FLAT_THEME);
         plugableFrame.addWindowListener(new WindowAdapter() {
 
             @Override

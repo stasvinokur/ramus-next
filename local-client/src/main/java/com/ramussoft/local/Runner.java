@@ -29,6 +29,7 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+
 import com.ramussoft.common.AccessRules;
 import com.ramussoft.common.Engine;
 import com.ramussoft.common.Metadata;
@@ -53,6 +54,7 @@ import com.ramussoft.gui.common.UndoRedoPlugin;
 import com.ramussoft.gui.common.event.ActionEvent;
 import com.ramussoft.gui.common.event.CloseMainFrameAdapter;
 import com.ramussoft.gui.common.prefrence.Options;
+import com.ramussoft.gui.common.theme.AppTheme;
 import com.ramussoft.gui.core.GUIPluginFactory;
 import com.ramussoft.gui.core.simple.SimleGUIPluginFactory;
 import com.ramussoft.gui.qualifier.QualifierPluginSuit;
@@ -157,9 +159,6 @@ public class Runner implements Commands {
             }
 
             try {
-                UIManager.put("swing.boldMetal", Boolean.FALSE);
-                String lookAndFeel = Options.getString("LookAndFeel");
-
                 String lang = Options.getString("LANG");
 
                 if (lang != null) {
@@ -170,17 +169,10 @@ public class Runner implements Commands {
                     }
                 }
 
-                if (lookAndFeel != null)
-                    UIManager.setLookAndFeel(lookAndFeel);
-                else {
-                    if ("com.sun.java.swing.plaf.gtk.GTKLookAndFeel"
-                            .equals(UIManager.getSystemLookAndFeelClassName()))
-                        UIManager.setLookAndFeel(UIManager
-                                .getCrossPlatformLookAndFeelClassName());
-                    else
-                        UIManager.setLookAndFeel(UIManager
-                                .getSystemLookAndFeelClassName());
-                }
+                // After the locale: the look and feel replaces the whole UIDefaults table,
+                // so anything locale-dependent that writes into it has to come later, not
+                // earlier. See the note on ResourceLoader below.
+                AppTheme.install();
             } catch (Exception e1) {
                 e1.printStackTrace();
             }

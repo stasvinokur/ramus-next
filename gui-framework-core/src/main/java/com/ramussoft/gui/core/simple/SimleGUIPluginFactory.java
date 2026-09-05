@@ -5,7 +5,6 @@ import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -31,7 +30,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 
 import com.ramussoft.common.AccessRules;
 import com.ramussoft.common.Engine;
@@ -59,7 +57,6 @@ import com.ramussoft.gui.common.prefrence.Options;
 import com.ramussoft.gui.common.print.PrintPreviewComponent;
 import com.ramussoft.gui.common.print.RamusPrintable;
 import com.ramussoft.gui.core.AboutPlugin;
-import com.ramussoft.gui.core.LookAndFeelPlugin;
 import com.ramussoft.gui.core.PlugableFrame;
 import com.ramussoft.gui.core.PreferenciesPlugin;
 import com.ramussoft.gui.core.ShowViewPlugin;
@@ -336,12 +333,6 @@ public class SimleGUIPluginFactory extends AbstractGUIPluginFactory {
             }
         };
 
-        UIManager.put(
-                "TextArea.font",
-                new Font(Options.getString("TEXT_AREA_DEF_FONT",
-                        "Tymes New Roman"), 0, Options.getInteger(
-                        "TEXT_AREA_DEF_FONT_SIZE", 14)));
-
         for (GUIPlugin p : plugins) {
             p.setFramework(framework);
             if (p instanceof ViewPlugin) {
@@ -403,10 +394,6 @@ public class SimleGUIPluginFactory extends AbstractGUIPluginFactory {
                 engine);
         preferenciesPlugin.setFramework(framework);
         list.add(preferenciesPlugin);
-
-        LookAndFeelPlugin lookAndFeelPlugin = new LookAndFeelPlugin();
-        lookAndFeelPlugin.setFramework(framework);
-        list.add(lookAndFeelPlugin);
 
         engine.setPluginProperty("GUI", "PluginList", plugins);
 

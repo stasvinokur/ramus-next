@@ -288,6 +288,15 @@ public class Options {
                 .toString(defValue))).intValue();
     }
 
+    /**
+     * Forgets a key. Needed because {@link #getString(String, String)} writes its default
+     * back into the file, so a key whose owning code has been deleted does not disappear on
+     * its own - it stays in options.conf for the life of the installation.
+     */
+    public static void remove(final String name) {
+        properties.remove(name);
+    }
+
     public static void setString(final String name, final String value) {
         setString(name, value, properties);
     }

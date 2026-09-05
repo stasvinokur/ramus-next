@@ -6,5 +6,20 @@ dependencies {
     implementation project(':common')
     implementation project(':core')
     implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
+
+    // The application's look and feel. `api`, not `implementation`: the theme is installed
+    // in local-client at startup and the icon work will need flatlaf-extras in other UI
+    // modules, and implementation dependencies are not visible to consumers.
+    api 'com.formdev:flatlaf:3.7.2'
+    // SwingX paints JXBusyLabel and JXDatePicker through its own LookAndFeelAddons, which
+    // without this picks an Aqua or Metal addon and draws those two widgets in the old
+    // colours inside a FlatLaf window. 40 KB.
+    api 'com.formdev:flatlaf-swingx:3.7.2'
+
     testImplementation 'junit:junit:4.13.2'
+}
+
+// Gradle 9 has no default test framework, and this module now has a test.
+tasks.named('test') {
+    useJUnit()
 }
