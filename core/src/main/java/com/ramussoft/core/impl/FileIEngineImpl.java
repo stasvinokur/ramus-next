@@ -217,13 +217,17 @@ public class FileIEngineImpl extends IEngineImpl {
                 Enumeration<Object> keys = ps.keys();
                 while (keys.hasMoreElements()) {
                     String key = (String) keys.nextElement();
-                    try {
-                        st.execute("DROP SEQUENCE " + prefix + key + ";");
-
-                    } catch (SQLException e) {
-
-                    }
-                    st.execute("CREATE SEQUENCE " + prefix + key + " START "
+                    // IF EXISTS rather than a swallowed failure: the sequence legitimately
+                    // may not be there yet, and that is not something to find out by
+                    // catching an exception and discarding it.
+                    st.execute("DROP SEQUENCE IF EXISTS " + prefix + key + ";");
+                    // START WITH, not START. The eighth and last occurrence of that syntax,
+                    // and the only one built by string concatenation with a value out of the
+                    // model file - which is why a search for the literal "START 1" did not
+                    // find it when the other seven were fixed. It is also the worst place
+                    // for it: this runs on every open of a model whose plugins have
+                    // sequences, and it throws, so H2 2.x could not open a real file at all.
+                    st.execute("CREATE SEQUENCE " + prefix + key + " START WITH "
                             + ps.getProperty(key) + ";");
                 }
                 st.close();
