@@ -69,11 +69,21 @@ public class IconsTest {
     }
 
     /**
-     * Resolved against every module's resource tree rather than against this module's
+     * Resolved the way the loader resolves: either the bitmap the path names, or the vector
+     * beside it. Most icons are now the second case - the source still asks for
+     * {@code file-save.png} and gets {@code file-save.svg}, because that indirection is the
+     * whole replacement mechanism.
+     */
+    private static boolean resolvable(String path) throws IOException {
+        return existsInAnyModule(path) || existsInAnyModule(Icons.vectorPath(path));
+    }
+
+    /**
+     * Checked against every module's resource tree rather than against this module's
      * classpath. The icons live in six different modules and only the packaged application
      * sees all of them at once, so a classpath check from here would report most of the set
      * as missing. What this catches is the real mistake: source that names an icon which is
-     * not in the repository at all.
+     * in the repository under neither name.
      */
     private static boolean existsInAnyModule(String path) throws IOException {
         String relative = path.startsWith("/") ? path.substring(1) : path;
@@ -96,20 +106,20 @@ public class IconsTest {
 
         List<String> missing = new ArrayList<String>();
         for (String path : paths)
-            if (!existsInAnyModule(path))
+            if (!resolvable(path))
                 missing.add(path);
 
-        assertEquals("icons named in the source but present in no module's resources: "
-                + missing, 0, missing.size());
+        assertEquals("icons named in the source but present in no module's resources, "
+                + "as neither a bitmap nor a vector: " + missing, 0, missing.size());
     }
 
     @Test
     public void loadsAnIconAndKeepsIt() {
-        Icon first = Icons.get("/com/ramussoft/gui/file-save.png");
+        Icon first = Icons.get("/com/ramussoft/gui/common/probe-raster-only.png");
         assertNotNull(first);
         // The same instance, not merely an equal one: decoding an icon per call was one of
         // the two things this class was written to stop.
-        assertSame(first, Icons.get("/com/ramussoft/gui/file-save.png"));
+        assertSame(first, Icons.get("/com/ramussoft/gui/common/probe-raster-only.png"));
     }
 
     /**
@@ -118,9 +128,9 @@ public class IconsTest {
      */
     @Test
     public void sharesOneCacheBetweenBothAccessors() {
-        Icon viaImage = Icons.image("/com/ramussoft/gui/table/add.png");
+        Icon viaImage = Icons.image("/com/ramussoft/gui/common/probe-raster-only.png");
         assertNotNull(viaImage);
-        assertSame(viaImage, Icons.get("/com/ramussoft/gui/table/add.png"));
+        assertSame(viaImage, Icons.get("/com/ramussoft/gui/common/probe-raster-only.png"));
     }
 
     /**
@@ -144,7 +154,10 @@ public class IconsTest {
      */
     @Test
     public void fallsBackToTheBitmapWhenThereIsNoVector() {
-        Icon icon = Icons.get("/com/ramussoft/gui/file-save.png");
+        // A path with no .svg beside it, on purpose. This used to name a real application
+        // icon, which then acquired a vector and turned the test red - correctly, but it made
+        // the test a hostage of the asset set rather than a check of the mechanism.
+        Icon icon = Icons.get("/com/ramussoft/gui/common/probe-raster-only.png");
         assertNotNull(icon);
         assertEquals("javax.swing.ImageIcon", icon.getClass().getName());
     }
