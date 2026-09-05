@@ -52,8 +52,6 @@ crashlytics-build.properties
 ### Gradle ###
 .gradle
 build/
-dest/ramus-2.0/
-dest/ramus-2.0.zip
 dest/macos/
 gradle-local.properties
 
@@ -102,8 +100,6 @@ tmp/
 
 # TeXlipse plugin
 .texlipse
-/dest/full/
-/dest/LICENSE
 
 .DS_Store
 backlog/

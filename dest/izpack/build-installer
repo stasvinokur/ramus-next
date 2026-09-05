@@ -1,3 +1,0 @@
-#!/bin/sh
-java -jar /home/zdd/Downloads/izpack-standalone-compiler-4.2.1.jar ramus.xml
-mv ramus.jar ramus-2.0-install.jar

@@ -73,8 +73,9 @@ In the console, navigate to the project folder and run:
 
 ## macOS
 
-Ramus Next focuses on native macOS integration and packaging. The Windows installer and Java Web Start
-descriptors are inherited from upstream, are not maintained here, and are not expected to work.
+Ramus Next focuses on native macOS integration and packaging. The upstream client/server modules, the
+Java Web Start descriptors and the NSIS/IzPack installers have been removed: none of them reached any
+distributable, and the Windows installer had not been buildable for years.
 
 Download: the latest macOS DMG is available in this repository's GitHub Releases section.
 
