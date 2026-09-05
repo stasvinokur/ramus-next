@@ -1,7 +1,13 @@
 plugins {
     id 'ramus.java-conventions'
     id 'application'
-    id 'com.github.johnrengelman.shadow' version '8.1.1'
+    // com.gradleup.shadow is the maintained successor to com.github.johnrengelman.shadow,
+    // which was abandoned at 8.1.1 and calls CopyProcessingSpec.setFileMode - removed in
+    // Gradle 9. Deliberately on the 8.3.x line rather than 9.x: Shadow 9 flipped the default
+    // duplicatesStrategy from EXCLUDE to INCLUDE, and this jar merges 18 project jars plus
+    // swingx, poi, itext, h2, docking-frames and batik, so every colliding META-INF entry
+    // would be duplicated into the archive.
+    id 'com.gradleup.shadow' version '8.3.11'
 }
 
 // Product naming, single source of truth for the whole build.
