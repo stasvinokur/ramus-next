@@ -282,18 +282,35 @@ jobs:
             test -f "artifacts/$expected" || { echo "missing $expected"; exit 1; }
           done
 
+      # This version's section of the changelog, not the whole file. The release is already
+      # titled for the tag, so its own heading would be repeated, and from the second release
+      # onwards the file carries every earlier version as well. Refuses rather than publishing
+      # an empty body when the tag has no section, which is the failure that would otherwise
+      # go out silently.
+      - name: Take the release notes from the changelog
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          awk -v want="## $version" '
+            $0 == want                   { found = 1; next }
+            found && /^## /              { exit }
+            found && !started && NF == 0 { next }
+            found                        { started = 1; print }
+          ' CHANGELOG.md > release-notes.md
+          test -s release-notes.md || { echo "CHANGELOG.md has no section for $version"; exit 1; }
+          echo "release notes: $(wc -l < release-notes.md) lines"
+
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # The body is CHANGELOG.md and nothing else. --generate-notes used to be here, but
-          # this project commits straight to main and opens no pull requests, so it produces a
-          # list of every commit subject since the previous tag - and for the first release
-          # there is no previous tag, so that is the entire history.
+          # --generate-notes used to be here, but this project commits straight to main and
+          # opens no pull requests, so it produces a list of every commit subject since the
+          # previous tag - and for a first release there is no previous tag to bound it.
           gh release create "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
             --title "${{ github.ref_name }}" \
-            --notes-file CHANGELOG.md \
+            --notes-file release-notes.md \
             artifacts/RamusNext-arm64.dmg \
             artifacts/RamusNext-x86_64.dmg \
             artifacts/RamusNext-x64.msi
