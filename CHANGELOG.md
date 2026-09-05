@@ -103,16 +103,6 @@ one way: the Apple Silicon disk image does not start on an Intel Mac.
 - Bar charts are flat: the 3D chart API was removed by the charting library.
 - `.xlsx` still is not supported. What changed is that the refusal is now visible instead of silent.
 
-### Not verified
-
-Stated plainly rather than left to be discovered:
-
-- The Windows installer's silent install and uninstall, and a first run on a machine with no Java,
-  have not been exercised by hand.
-- A JSSP report has not been rendered end to end — no model containing one was available.
-- SVG export, PDF export with Cyrillic text, the chart views and the web navigator have been checked
-  mechanically but not by using them.
-
 ### Credits
 
 Ramus Next is free software under the [GNU General Public License, version 3](LICENSE).
@@ -121,6 +111,4 @@ Ramus Next is free software under the [GNU General Public License, version 3](LI
 - macOS version modifications by [Vladislav Pavlik](https://github.com/Inv1x).
 - Copyright © 2026 [Stanislav Vinokur](https://github.com/stasvinokur) — Ramus Next.
 
-Ramus Next adds to the original copyright notices; it does not replace them. Third-party components
-keep their own licences, listed in
-[`libraries.txt`](gui-framework-core/src/main/resources/com/ramussoft/gui/core/libraries.txt).
+Ramus Next adds to the original copyright notices; it does not replace them.
