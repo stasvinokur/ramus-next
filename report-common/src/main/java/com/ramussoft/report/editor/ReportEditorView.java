@@ -49,11 +49,10 @@ public class ReportEditorView extends AbstractView implements TabView {
 
     private com.ramussoft.gui.common.event.ActionListener beforeSaveAction;
 
-    private Thread loading = null;
+    /** Only ever assigned on the EDT; volatile for the worker's read of `cancelled`. */
+    private volatile Loader loading = null;
 
     protected JPanel buttonsPanel;
-
-    private Object lock = new Object();
 
     public ReportEditorView(final GUIFramework framework, final Element element) {
         super(framework);
@@ -121,40 +120,58 @@ public class ReportEditorView extends AbstractView implements TabView {
         return button;
     }
 
-    @SuppressWarnings("deprecation")
+    /**
+     * Renders the report off the EDT and drops the result if the user has moved on.
+     *
+     * <p>This used to call {@code Thread.stop()} on the previous renderer. That is not
+     * merely deprecated: JDK 20 made it throw UnsupportedOperationException
+     * unconditionally, and the call was not inside a try, so on the bundled Java 21
+     * runtime switching between the HTML and preview tabs twice threw on the EDT and the
+     * view failed to switch. A stale render is now simply allowed to finish and its result
+     * discarded, which is what stopping it achieved minus the corruption; the report
+     * engine's own deadline bounds how long it can run.
+     */
+    private final class Loader extends Thread {
+
+        private volatile boolean cancelled;
+
+        private final SubView view;
+
+        Loader(SubView view) {
+            super("Report.Loading");
+            setDaemon(true);
+            this.view = view;
+        }
+
+        void cancel() {
+            cancelled = true;
+        }
+
+        @Override
+        public void run() {
+            final String page = getHTMLText();
+            if (cancelled)
+                return;
+            SwingUtilities.invokeLater(new Runnable() {
+
+                @Override
+                public void run() {
+                    if (!cancelled)
+                        setText(view, page);
+                }
+            });
+        }
+    }
+
     public void beforeSubviewActivated(final SubView view) {
         if ((view == htmlView) || (view == previewView)) {
-
-            synchronized (lock) {
-                if (loading != null)
-                    loading.stop();
-                loading = null;
-                setText(view, ReportResourceManager.getString("Report.Loading"));
-            }
-
-            synchronized (lock) {
-                loading = new Thread("Report.Loading") {
-                    @Override
-                    public void run() {
-                        final String page = getHTMLText();
-                        synchronized (lock) {
-                            SwingUtilities.invokeLater(new Runnable() {
-
-                                @Override
-                                public void run() {
-                                    synchronized (lock) {
-                                        setText(view, page);
-                                    }
-                                }
-                            });
-                            loading = null;
-                        }
-                    }
-                };
-                loading.start();
-            }
-
-
+            Loader previous = loading;
+            if (previous != null)
+                previous.cancel();
+            setText(view, ReportResourceManager.getString("Report.Loading"));
+            Loader next = new Loader(view);
+            loading = next;
+            next.start();
         } else if (view == queryView) {
             queryView.setQueryForReport(element);
         }

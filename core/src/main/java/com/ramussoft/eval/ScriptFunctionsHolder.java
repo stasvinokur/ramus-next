@@ -1,48 +1,49 @@
 package com.ramussoft.eval;
 
-import java.util.Set;
-
-import javax.script.Bindings;
-import javax.script.Invocable;
-import javax.script.ScriptContext;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
+import com.ramussoft.common.Metadata;
+import com.ramussoft.eval.js.JsException;
+import com.ramussoft.eval.js.JsScope;
 
 public class ScriptFunctionsHolder {
 
-    private ScriptEngine engine;
+    /**
+     * Formulas are recalculated on the UI thread whenever an attribute changes, so a
+     * runaway loop here freezes the application. Keep the limit tight.
+     */
+    private static final long TIMEOUT_MILLIS = 5000L;
 
-    public ScriptFunctionsHolder(String script) throws ScriptException {
-        ScriptEngineManager factory = new ScriptEngineManager();
-        engine = factory.getEngineByName("JavaScript");
-        engine.eval(script);
+    private static final String TIMEOUT_MESSAGE =
+            "Script function ran longer than " + (TIMEOUT_MILLIS / 1000L) + " s";
+
+    private final JsScope scope = new JsScope();
+
+    public ScriptFunctionsHolder(String script) throws JsException {
+        scope.eval(script, "/script", TIMEOUT_MILLIS, TIMEOUT_MESSAGE);
     }
 
     public EObject tryToInvoke(String functionName, Object[] objects) {
+        if (!scope.hasFunction(functionName))
+            return null;
         try {
-            if (engine.get(functionName) == null)
-                return null;
-            Object res = ((Invocable) engine).invokeFunction(functionName,
-                    objects);
-            return new EObject(res);
-        } catch (ScriptException e) {
-            e.printStackTrace();
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();
+            return new EObject(scope.invoke(functionName, objects,
+                    TIMEOUT_MILLIS, TIMEOUT_MESSAGE));
+        } catch (JsException e) {
+            if (Metadata.DEBUG)
+                e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
+    /**
+     * Note a deliberate change of meaning: this used to return true for any non-null
+     * binding, so Math, print or a plain variable all counted as functions. It now
+     * requires an actual function, which is what the formula engine means by the question.
+     */
     public boolean isFunctionExists(String function) {
-        if (engine.get(function) != null)
-            return true;
-        return false;
+        return scope.hasFunction(function);
     }
 
     public String[] getFunctions() {
-        Bindings bindings = engine.getBindings(ScriptContext.ENGINE_SCOPE);
-        Set<String> list = bindings.keySet();
-        return list.toArray(new String[list.size()]);
+        return scope.names();
     }
 }

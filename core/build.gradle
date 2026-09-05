@@ -3,6 +3,13 @@ plugins {
 }
 
 dependencies {
+    // The JavaScript engine for report scripts and formula functions. Nashorn left the JDK
+    // in 15 and nothing replaced it, so until now getEngineByName("JavaScript") returned
+    // null and every scripted formula and JSSP report threw a NullPointerException.
+    // rhino rather than rhino-runtime: the latter is frozen at 1.7.15 while this line is
+    // maintained, it carries no tools or debugger, and the difference is 0.4 MB.
+    implementation 'org.mozilla:rhino:1.9.1'
+
     implementation project(':common')
     implementation project(':database-storage')
     testImplementation group: 'junit', name: 'junit', version: '4.11'

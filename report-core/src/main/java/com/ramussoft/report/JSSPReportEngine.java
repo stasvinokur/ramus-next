@@ -1,31 +1,31 @@
 package com.ramussoft.report;
 
 import java.io.BufferedReader;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 
 import com.ramussoft.common.Engine;
 import com.ramussoft.common.Metadata;
+import com.ramussoft.eval.js.JsException;
+import com.ramussoft.eval.js.JsScope;
 import com.ramussoft.report.data.Data;
 import com.ramussoft.report.data.Out;
 
 public class JSSPReportEngine extends ReportEngine {
 
-    protected static final String SCRIPT_WORKED_TOO_LONG = "Script worked too long, and was interrupted!!! (виконання сценарію тривало більше 50-ти секунд, в результаті чого виконання було перервано)";
+    private static final long DEMO_TIMEOUT_MILLIS = 50000L;
 
-    protected ScriptEngineManager manager = new ScriptEngineManager();
+    private static final long CORPORATE_TIMEOUT_MILLIS = 300000L;
+
+    /** Lines of source shown either side of the failing line on the error page. */
+    private static final int CONTEXT_LINES = 5;
 
     protected ReportQueryImpl reportQuery;
 
@@ -34,162 +34,112 @@ public class JSSPReportEngine extends ReportEngine {
         this.reportQuery = reportQuery;
     }
 
-    protected class ExceptionHolder {
-        ScriptException scriptException;
-        RuntimeException exception;
-        boolean finished = false;
+    protected static long timeoutMillis() {
+        return Metadata.CORPORATE ? CORPORATE_TIMEOUT_MILLIS : DEMO_TIMEOUT_MILLIS;
     }
 
-    ;
+    /**
+     * Derived rather than hard-coded. The old constant told the user "50 seconds" while
+     * Metadata.CORPORATE made the real limit 300, so the message was simply wrong in the
+     * shipped build.
+     */
+    protected static String scriptWorkedTooLong() {
+        return MessageFormat.format(
+                "Script worked too long ({0} s) and was interrupted.",
+                Long.valueOf(timeoutMillis() / 1000L));
+    }
 
-    @SuppressWarnings("deprecation")
     public void execute(String scriptPath, OutputStream stream,
                         Map<String, Object> parameters) throws IOException {
         byte[] bytes = engine.getStream(scriptPath);
         if (bytes == null)
             bytes = new byte[]{};
-        String script = new String(bytes, "UTF-8");
+        String script = new String(bytes, StandardCharsets.UTF_8);
         JSSPToJsConverter converter = new JSSPToJsConverter(script);
-        final ScriptEngine engine = manager.getEngineByName("JavaScript");
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         Out out = createOut(outputStream);
         try {
+            JsScope scope = new JsScope();
             SimpleOut simpleOut = new SimpleOut(out);
-            engine.put("doc", simpleOut);
-            engine.put("document", simpleOut);
-            engine.put("out", simpleOut);
+            scope.put("doc", simpleOut);
+            scope.put("document", simpleOut);
+            scope.put("out", simpleOut);
             Query query = (Query) parameters.get("query");
-            engine.put("data", new Data(this.engine, query, reportQuery));
+            scope.put("data", new Data(this.engine, query, reportQuery));
             for (Entry<String, Object> entry : parameters.entrySet())
-                engine.put(entry.getKey(), entry.getValue());
-            final String convert = converter.convert();
-            final Object w = new Object();
-            final ExceptionHolder exceptionHolder = new ExceptionHolder();
-            Thread thread = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        engine.eval(convert);
-                    } catch (ScriptException e) {
-                        exceptionHolder.scriptException = e;
-                    } catch (RuntimeException e) {
-                        exceptionHolder.exception = e;
-                    }
-                    synchronized (w) {
-                        exceptionHolder.finished = true;
-                        w.notify();
-                    }
-                }
-            };
-            thread.start();
-            try {
-                synchronized (w) {
-                    if (Metadata.CORPORATE) {
-                        if (!exceptionHolder.finished)
-                            w.wait(300000);
-                    } else {
-                        if (!exceptionHolder.finished)
-                            w.wait(50000);
-                    }
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            if (!exceptionHolder.finished) {
-                thread.stop();
-                throw new ScriptException(SCRIPT_WORKED_TOO_LONG);
-            }
-            if (exceptionHolder.scriptException != null) {
-                /*
-                 * if(exceptionHolder.scriptException.getCause() instanceof
-				 * Exception)
-				 * ((Exception)exceptionHolder.scriptException.getCause
-				 * ()).printStackTrace();
-				 */
-                throw exceptionHolder.scriptException;
-            }
-            if (exceptionHolder.exception != null)
-                throw exceptionHolder.exception;
-            out.flush();
-            out.realWriteWithHTMLUpdate();
-            stream.write(outputStream.toByteArray());
-        } catch (ScriptException e) {
-            e.printStackTrace();
-            out = new Out(stream);
-            String message = e.getLocalizedMessage();
-            String moz = "sun.org.mozilla.javascript.internal.EcmaError:";
-            if (message.startsWith(moz))
-                message = message.substring(moz.length() + 1);
+                scope.put(entry.getKey(), entry.getValue());
 
-            Pattern pattern = Pattern.compile("(\\d+)");
-            Matcher matcher = pattern.matcher(message);
-            int minus = 5;
-            int plus = 5;
-            if (matcher.find()) {
-                String group = matcher.group();
-                while (matcher.find())
-                    group = matcher.group();
+            // Runs on the calling thread. The deadline is enforced from inside the
+            // interpreter, so there is no second thread to kill and Thread.stop - which
+            // JDK 20 made throw unconditionally - is not needed. This also removes the
+            // non-volatile `finished` flag and the wait() that was not in a loop, where a
+            // spurious wakeup would abort a perfectly healthy report with a bogus timeout.
+            scope.eval(converter.convert(), scriptPath, timeoutMillis(),
+                    scriptWorkedTooLong());
 
-                int number = Integer.parseInt(group);
-                int from = 0;
-                if (number > minus)
-                    from = number - minus;
-
-                BufferedReader br = new BufferedReader(new StringReader(script));
-                int i = 0;
-                while (i < from) {
-                    try {
-                        br.readLine();
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
-                    i++;
-                }
-
-                out.println("<html>");
-                out.println("<body>");
-                out.println(message);
-
-                out.println("<br><br><table width=\"100%\">");
-                i = from;
-                while (true) {
-                    String line = null;
-                    line = br.readLine();
-                    if (line == null)
-                        break;
-                    if (i - plus >= number)
-                        break;
-                    out.println("<tr>");
-                    out.println("<td width=\"1%\"><font color=green>" + (i + 1)
-                            + "</font></td>");
-                    String string = line.replace("<", "&lt;").replace(">",
-                            "&gt;");
-                    if (i + 1 == number)
-                        string = "<font color=\"#FF0000\">" + string
-                                + "</font>";
-                    out.println("<td width=\"99%\"><pre>" + string
-                            + "</pre></td>");
-                    out.println("</tr>");
-                    i++;
-                }
-                out.println("</table>");
-                out.println("</body>");
-                out.println("</html>");
-            } else {
-                out.println("<html>");
-                out.println("<body>");
-                out.println("<pre>");
-                if (e.getLocalizedMessage().equals(SCRIPT_WORKED_TOO_LONG))
-                    out.print(e.getLocalizedMessage());
-                else
-                    e.printStackTrace(out);
-                out.println("</pre>");
-                out.println("</body>");
-                out.println("</html>");
-            }
-            out.flush();
-            out.realWrite();
+            finish(out, outputStream, stream);
+        } catch (JsException e) {
+            // Preserves the old two-branch behaviour: a RuntimeException raised by Ramus
+            // code the script called keeps propagating to the caller, which renders it as a
+            // DataException; anything else becomes an error page.
+            if (e.getJavaCause() instanceof RuntimeException)
+                throw (RuntimeException) e.getJavaCause();
+            writeError(stream, script, e);
         }
+    }
+
+    /** Overridden by {@link JSSPDocBookReportEngine}. */
+    protected void finish(Out out, ByteArrayOutputStream outputStream,
+                          OutputStream stream) throws IOException {
+        out.flush();
+        out.realWriteWithHTMLUpdate();
+        stream.write(outputStream.toByteArray());
+    }
+
+    protected void writeError(OutputStream stream, String script, JsException e)
+            throws IOException {
+        Out out = new Out(stream);
+        // Rhino reports the line directly. The old code scraped the last integer out of the
+        // message text with a regular expression, after stripping a
+        // "sun.org.mozilla.javascript.internal.EcmaError:" prefix that no JDK has produced
+        // since Java 8.
+        int number = e.getLineNumber();
+        String message = escape(e.getMessage());
+        out.println("<html>");
+        out.println("<body>");
+        if (number > 0) {
+            out.println(message);
+            out.println("<br><br><table width=\"100%\">");
+            int from = Math.max(0, number - 1 - CONTEXT_LINES);
+            BufferedReader br = new BufferedReader(new StringReader(script));
+            for (int i = 0; i < from; i++)
+                if (br.readLine() == null)
+                    break;
+            for (int i = from; i < number + CONTEXT_LINES; i++) {
+                String line = br.readLine();
+                if (line == null)
+                    break;
+                String text = escape(line);
+                if (i + 1 == number)
+                    text = "<font color=\"#FF0000\">" + text + "</font>";
+                out.println("<tr><td width=\"1%\"><font color=green>" + (i + 1)
+                        + "</font></td><td width=\"99%\"><pre>" + text
+                        + "</pre></td></tr>");
+            }
+            out.println("</table>");
+        } else {
+            out.println("<pre>" + message + "</pre>");
+        }
+        out.println("</body>");
+        out.println("</html>");
+        out.flush();
+        out.realWrite();
+    }
+
+    /** The old code printed the exception message into the page unescaped. */
+    private static String escape(String s) {
+        return (s == null) ? "" : s.replace("&", "&amp;")
+                .replace("<", "&lt;").replace(">", "&gt;");
     }
 
     protected Out createOut(ByteArrayOutputStream outputStream)
