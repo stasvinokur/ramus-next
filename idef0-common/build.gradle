@@ -16,7 +16,23 @@ dependencies {
         exclude group: 'org.hamcrest'
         exclude group: 'org.freehep', module: 'freehep-graphicsio-tests'
     }
-    implementation 'batik:batik-svggen:1.6-1'
+    // batik:batik-svggen:1.6-1 is from 2005, under the pre-Apache coordinates, and it drags
+    // in Xerces 2.5.0 (2003) plus xml-apis 2.0.2 (2002). That is not dead weight: those jars
+    // register themselves as the JAXP SAXParserFactory, DocumentBuilderFactory and SAX
+    // driver through service files that the fat jar preserves, so a 2003 parser was handling
+    // EVERY XML read in the application - every model file load included, not just SVG
+    // export. batik-dom is declared explicitly rather than relied on transitively.
+    implementation('org.apache.xmlgraphics:batik-svggen:1.19') {
+        // xml-apis is a standalone copy of javax.xml.parsers, org.xml.sax and org.w3c.dom -
+        // i.e. of packages the JDK exports from module java.xml. Shipping it duplicates the
+        // platform API inside the application jar for no benefit. xml-apis-ext is different
+        // and is kept: it carries org.w3c.dom.svg, smil and css.sac, which batik needs and
+        // the JDK does not provide.
+        exclude group: 'xml-apis', module: 'xml-apis'
+    }
+    implementation('org.apache.xmlgraphics:batik-dom:1.19') {
+        exclude group: 'xml-apis', module: 'xml-apis'
+    }
     implementation 'javax.help:javahelp:2.0.05'
     implementation project(':common')
     implementation project(':core')
