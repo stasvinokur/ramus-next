@@ -52,6 +52,7 @@ import com.ramussoft.gui.common.prefrence.Options;
 import com.ramussoft.gui.common.print.HTMLPrintable;
 import com.ramussoft.gui.qualifier.Commands;
 import com.ramussoft.gui.qualifier.QualifierSelectComponent;
+import com.ramussoft.gui.common.Icons;
 
 public abstract class AbstractTableView extends AbstractView implements
         Commands {
@@ -281,8 +282,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "CreateElement");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/add.png")));
+                    Icons.get("/com/ramussoft/gui/table/add.png"));
             this.putValue(ACCELERATOR_KEY,
                     KeyStroke.getKeyStroke(KeyEvent.VK_ADD, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
         }
@@ -320,8 +320,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "CreateChildElement");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/add-child.png")));
+                    Icons.get("/com/ramussoft/gui/table/add-child.png"));
         }
 
         /**
@@ -355,8 +354,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "SetElementIcon");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/set-icon.png")));
+                    Icons.get("/com/ramussoft/gui/set-icon.png"));
             this.putValue(ACCELERATOR_KEY,
                     KeyStroke.getKeyStroke(KeyEvent.VK_I, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
         }
@@ -417,8 +415,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "Action.SortByName");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/sort-incr.png")));
+                    Icons.get("/com/ramussoft/gui/table/sort-incr.png"));
         }
 
         @Override
@@ -442,8 +439,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "Action.SelectUnconnected");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/select-unconnected.png")));
+                    Icons.get("/com/ramussoft/gui/table/select-unconnected.png"));
         }
 
         @Override
@@ -480,8 +476,7 @@ public abstract class AbstractTableView extends AbstractView implements
             putValue(ACTION_COMMAND_KEY, "Action.JoinElements");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/join-elements.png")));
+                    Icons.get("/com/ramussoft/gui/table/join-elements.png"));
         }
 
         @Override
@@ -520,8 +515,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "DeleteElement");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/delete.png")));
+                    Icons.get("/com/ramussoft/gui/table/delete.png"));
             // this.putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(
             // KeyEvent.VK_DELETE, 0));
         }
@@ -590,8 +584,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "CollapseAll");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/collapse.png")));
+                    Icons.get("/com/ramussoft/gui/table/collapse.png"));
             this.putValue(
                     ACCELERATOR_KEY,
                     KeyStroke.getKeyStroke(KeyEvent.VK_C, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()
@@ -616,8 +609,7 @@ public abstract class AbstractTableView extends AbstractView implements
             this.putValue(ACTION_COMMAND_KEY, "ExpandAll");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/expand.png")));
+                    Icons.get("/com/ramussoft/gui/table/expand.png"));
             this.putValue(
                     ACCELERATOR_KEY,
                     KeyStroke.getKeyStroke(KeyEvent.VK_E, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()
@@ -680,10 +672,7 @@ public abstract class AbstractTableView extends AbstractView implements
             putValue(ACTION_COMMAND_KEY, "Action.SetElementQualifier");
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(
-                            getClass()
-                                    .getResource(
-                                            "/com/ramussoft/gui/table/set-element-qualifier.png")));
+                    Icons.get("/com/ramussoft/gui/table/set-element-qualifier.png"));
             setEnabled(false);
         }
 

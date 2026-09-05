@@ -28,7 +28,7 @@ public abstract class SplashScreen extends JWindow {
     }
 
     protected JLabel getLabel() {
-        return new JLabel(new ImageIcon(getClass().getResource(getImageName())));
+        return new JLabel(Icons.get(getImageName()));
     }
 
     protected abstract String getImageName();

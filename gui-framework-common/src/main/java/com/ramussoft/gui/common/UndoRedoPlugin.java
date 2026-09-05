@@ -8,6 +8,7 @@ import java.lang.reflect.Proxy;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.KeyStroke;
 
@@ -85,8 +86,8 @@ public class UndoRedoPlugin extends AbstractViewPlugin {
         return new ActionDescriptor[]{undo, redo};
     }
 
-    private ImageIcon getIcon(String resourceName) {
-        return new ImageIcon(getClass().getResource(resourceName));
+    private Icon getIcon(String resourceName) {
+        return Icons.get(resourceName);
     }
 
     protected void updateUndoRedo() {

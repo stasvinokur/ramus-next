@@ -18,6 +18,7 @@ import java.util.Map.Entry;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -61,6 +62,7 @@ import com.ramussoft.gui.core.PlugableFrame;
 import com.ramussoft.gui.core.PreferenciesPlugin;
 import com.ramussoft.gui.core.ShowViewPlugin;
 import com.ramussoft.gui.core.ShowWorkspacePlugin;
+import com.ramussoft.gui.common.Icons;
 
 public class SimleGUIPluginFactory extends AbstractGUIPluginFactory {
 
@@ -655,10 +657,12 @@ public class SimleGUIPluginFactory extends AbstractGUIPluginFactory {
                         text = getter.getString(command);
                 }
 
-                ImageIcon icon = (ImageIcon) action.getValue(Action.SMALL_ICON);
+                // Icon, not ImageIcon: the cast was gratuitous - this goes straight into
+                // CButton(String, Icon) - and narrowing it here is what would stop an icon
+                // that is not a bitmap from ever being used.
+                Icon icon = (Icon) action.getValue(Action.SMALL_ICON);
                 if (icon == null) {
-                    icon = new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/icon.png"));
+                    icon = Icons.get("/com/ramussoft/gui/icon.png");
                 }
                 String tooltip = (String) action
                         .getValue(Action.LONG_DESCRIPTION);

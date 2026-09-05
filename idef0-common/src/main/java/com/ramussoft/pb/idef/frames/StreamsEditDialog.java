@@ -28,6 +28,7 @@ import com.ramussoft.pb.Stream;
 import com.ramussoft.pb.data.RowFactory;
 import com.ramussoft.pb.data.RowSetClass;
 import com.ramussoft.pb.frames.components.RowFindPanel;
+import com.ramussoft.gui.common.Icons;
 
 public class StreamsEditDialog extends JDialog {
 
@@ -145,8 +146,7 @@ public class StreamsEditDialog extends JDialog {
     }
 
     private Action createAction(final String action) {
-        return createAction(action, new ImageIcon(getClass().getResource(
-                "/images/" + action + ".png")));
+        return createAction(action, Icons.image("/images/" + action + ".png"));
     }
 
     private Action createAction(final String action, final ImageIcon icon) {
@@ -212,8 +212,7 @@ public class StreamsEditDialog extends JDialog {
      */
     private JButton getSelect() {
         if (select == null) {
-            select = new JButton(createAction(SELECT, new ImageIcon(getClass()
-                    .getResource("/images/sel_ather.png"))));
+            select = new JButton(createAction(SELECT, Icons.image("/images/sel_ather.png")));
         }
         return select;
     }

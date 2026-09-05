@@ -34,6 +34,7 @@ import com.ramussoft.gui.eval.SetFormulaDialog;
 import com.ramussoft.gui.qualifier.table.RowTransferHandle;
 import com.ramussoft.gui.qualifier.table.SelectType;
 import com.ramussoft.gui.qualifier.table.SelectableTableView;
+import com.ramussoft.gui.common.Icons;
 
 public class TableEditor extends AbstractAttributeEditor {
 
@@ -202,8 +203,7 @@ public class TableEditor extends AbstractAttributeEditor {
 
         {
             this.putValue(ACTION_COMMAND_KEY, "CreateElement");
-            this.putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/add.png")));
+            this.putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/add.png"));
             this.putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(
                     KeyEvent.VK_ADD, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
         }
@@ -223,8 +223,7 @@ public class TableEditor extends AbstractAttributeEditor {
 
         {
             this.putValue(ACTION_COMMAND_KEY, "DeleteElement");
-            this.putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/delete.png")));
+            this.putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/delete.png"));
         }
 
         @Override
@@ -258,8 +257,7 @@ public class TableEditor extends AbstractAttributeEditor {
 
         public SetFormulaAction() {
             putValue(ACTION_COMMAND_KEY, "Action.SetFormula");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/formula.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/formula.png"));
             setEnabled(false);
         }
 
@@ -296,10 +294,7 @@ public class TableEditor extends AbstractAttributeEditor {
                     "Action.CopyTableElementToOtherElement");
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(
-                            getClass()
-                                    .getResource(
-                                            "/com/ramussoft/gui/table/copy-table-element-to-other-element.png")));
+                    Icons.get("/com/ramussoft/gui/table/copy-table-element-to-other-element.png"));
             setEnabled(false);
         }
 
@@ -360,10 +355,7 @@ public class TableEditor extends AbstractAttributeEditor {
                     "Action.MoveTableElementToOtherElement");
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(
-                            getClass()
-                                    .getResource(
-                                            "/com/ramussoft/gui/table/move-table-element-to-other-element.png")));
+                    Icons.get("/com/ramussoft/gui/table/move-table-element-to-other-element.png"));
             setEnabled(false);
         }
 

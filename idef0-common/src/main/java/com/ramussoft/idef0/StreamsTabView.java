@@ -33,6 +33,7 @@ import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.common.TabView;
 import com.ramussoft.gui.qualifier.table.StatusMessageFormat;
+import com.ramussoft.gui.common.Icons;
 
 public class StreamsTabView extends AbstractView implements TabView {
 
@@ -188,8 +189,7 @@ public class StreamsTabView extends AbstractView implements TabView {
                     GlobalResourcesManager.getString("DeleteElement"));
             this.putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/delete.png")));
+                    Icons.get("/com/ramussoft/gui/table/delete.png"));
             this.putValue(ACCELERATOR_KEY,
                     KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
 

@@ -21,6 +21,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
 import com.dsoft.utils.Options;
+import com.ramussoft.gui.common.Icons;
 
 /**
  * @author ZDD
@@ -91,8 +92,7 @@ public class RowFindPanel extends JPanel {
     private JButton getJButton() {
         if (jButton == null) {
             jButton = new JButton();
-            jButton.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/x.png")));
+            jButton.setIcon(Icons.get("/images/x.png"));
             jButton.setPreferredSize(new java.awt.Dimension(14, 14));
             jButton.setToolTipText("close_find_panel");
             jButton.addActionListener(new java.awt.event.ActionListener() {
@@ -191,8 +191,7 @@ public class RowFindPanel extends JPanel {
             jButton1 = new JButton();
             // jButton1.setText("find_next");
             jButton1.setPreferredSize(new java.awt.Dimension(14, 14));
-            jButton1.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/findnext_1.gif")));
+            jButton1.setIcon(Icons.get("/images/findnext_1.gif"));
             jButton1.setToolTipText("find_next_word");
             jButton1.addActionListener(new ActionListener() {
 

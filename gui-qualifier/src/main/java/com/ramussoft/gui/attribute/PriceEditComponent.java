@@ -28,6 +28,7 @@ import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
+import com.ramussoft.gui.common.Icons;
 
 public class PriceEditComponent extends JPanel {
     /**
@@ -105,8 +106,7 @@ public class PriceEditComponent extends JPanel {
 
         JButton btnNewButton = new JButton(
                 GlobalResourcesManager.getString("Record.Add"));
-        btnNewButton.setIcon(new ImageIcon(PriceEditComponent.class
-                .getResource("/com/ramussoft/gui/table/add.png")));
+        btnNewButton.setIcon(Icons.get("/com/ramussoft/gui/table/add.png"));
         btnNewButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 addRow();
@@ -116,8 +116,7 @@ public class PriceEditComponent extends JPanel {
 
         JButton btnNewButton_1 = new JButton(
                 GlobalResourcesManager.getString("Record.Remove"));
-        btnNewButton_1.setIcon(new ImageIcon(PriceEditComponent.class
-                .getResource("/com/ramussoft/gui/table/delete.png")));
+        btnNewButton_1.setIcon(Icons.get("/com/ramussoft/gui/table/delete.png"));
         btnNewButton_1.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 removeRow();

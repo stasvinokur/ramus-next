@@ -19,6 +19,7 @@ import com.ramussoft.gui.qualifier.table.RowTreeTable;
 import com.ramussoft.gui.qualifier.table.TableTabView;
 import com.ramussoft.gui.qualifier.table.event.SelectionEvent;
 import com.ramussoft.gui.qualifier.table.event.SelectionListener;
+import com.ramussoft.gui.common.Icons;
 
 public class QualifierHistoryPlugin extends AbstractQualifierSetupPlugin
         implements ElementActionPlugin {
@@ -51,8 +52,7 @@ public class QualifierHistoryPlugin extends AbstractQualifierSetupPlugin
 
                 {
                     putValue(ACTION_COMMAND_KEY, "Action.ShowHistory");
-                    putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/history.png")));
+                    putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/history.png"));
                     setEnabled(false);
                 }
 

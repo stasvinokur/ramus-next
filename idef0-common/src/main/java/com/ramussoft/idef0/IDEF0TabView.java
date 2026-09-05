@@ -45,6 +45,7 @@ import com.ramussoft.pb.idef.visual.VisualPanel;
 import com.ramussoft.pb.idef.visual.VisualPanelImpl;
 import com.ramussoft.pb.idef.visual.event.ActiveFunctionEvent;
 import com.ramussoft.pb.idef.visual.event.ActiveFunctionListener;
+import com.ramussoft.gui.common.Icons;
 
 public class IDEF0TabView extends AbstractView implements TabView {
 
@@ -83,8 +84,7 @@ public class IDEF0TabView extends AbstractView implements TabView {
             putValue(ACTION_COMMAND_KEY, "Action.CreateFromText");
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/add.png")));
+                    Icons.get("/com/ramussoft/gui/table/add.png"));
         }
 
         @Override
@@ -101,7 +101,7 @@ public class IDEF0TabView extends AbstractView implements TabView {
             setEnabled(false);
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource("/images/dropper.png")));
+                    Icons.get("/images/dropper.png"));
 
             addPropertyChangeListener(new PropertyChangeListener() {
 

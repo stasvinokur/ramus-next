@@ -70,6 +70,7 @@ import com.ramussoft.gui.common.prefrence.AbstractPreferences;
 import com.ramussoft.gui.common.prefrence.Options;
 import com.ramussoft.gui.common.prefrence.Preferences;
 import com.ramussoft.gui.qualifier.Commands;
+import com.ramussoft.gui.common.Icons;
 
 public class FilePlugin extends AbstractViewPlugin implements Commands {
 
@@ -112,8 +113,7 @@ public class FilePlugin extends AbstractViewPlugin implements Commands {
 
         {
             putValue(ACTION_COMMAND_KEY, "FileSave");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/file-save.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/file-save.png"));
             putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(KeyEvent.VK_S,
                     Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
         }
@@ -375,8 +375,7 @@ public class FilePlugin extends AbstractViewPlugin implements Commands {
 
             {
                 putValue(ACTION_COMMAND_KEY, "NewProject");
-                putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                        "/com/ramussoft/gui/new.png")));
+                putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/new.png"));
                 putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(KeyEvent.VK_N,
                         KeyEvent.CTRL_MASK));
             }
@@ -399,8 +398,7 @@ public class FilePlugin extends AbstractViewPlugin implements Commands {
 
             {
                 putValue(ACTION_COMMAND_KEY, "FileOpen");
-                putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                        "/com/ramussoft/gui/file-open.png")));
+                putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/file-open.png"));
                 putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(KeyEvent.VK_O,
                         Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
             }

@@ -22,6 +22,7 @@ import javax.swing.table.AbstractTableModel;
 
 import com.ramussoft.core.attribute.simple.VariantPropertyPersistent;
 import com.ramussoft.gui.common.GlobalResourcesManager;
+import com.ramussoft.gui.common.Icons;
 
 public class AttributeVariantPanel extends JPanel {
 
@@ -30,17 +31,13 @@ public class AttributeVariantPanel extends JPanel {
      */
     private static final long serialVersionUID = 5034231456454357002L;
 
-    private final JButton add = new JButton(new ImageIcon(getClass()
-            .getResource("/com/ramussoft/gui/table/add.png")));
+    private final JButton add = new JButton(Icons.get("/com/ramussoft/gui/table/add.png"));
 
-    private final JButton remove = new JButton(new ImageIcon(getClass()
-            .getResource("/com/ramussoft/gui/table/delete.png")));
+    private final JButton remove = new JButton(Icons.get("/com/ramussoft/gui/table/delete.png"));
 
-    private final JButton moveUp = new JButton(new ImageIcon(getClass()
-            .getResource("/com/ramussoft/gui/table/move-up.png")));
+    private final JButton moveUp = new JButton(Icons.get("/com/ramussoft/gui/table/move-up.png"));
 
-    private final JButton moveDown = new JButton(new ImageIcon(getClass()
-            .getResource("/com/ramussoft/gui/table/move-down.png")));
+    private final JButton moveDown = new JButton(Icons.get("/com/ramussoft/gui/table/move-down.png"));
 
     private final JPanel main = new JPanel();
 

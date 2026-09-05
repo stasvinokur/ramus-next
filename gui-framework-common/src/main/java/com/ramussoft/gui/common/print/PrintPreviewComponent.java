@@ -41,6 +41,7 @@ import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.common.PrintPlugin;
 import com.ramussoft.gui.common.prefrence.Options;
+import com.ramussoft.gui.common.Icons;
 
 public abstract class PrintPreviewComponent extends JComponent {
 
@@ -498,8 +499,7 @@ public abstract class PrintPreviewComponent extends JComponent {
             super(GlobalResourcesManager.getString("Action.Print"));
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/print.png")));
+                    Icons.get("/com/ramussoft/gui/print.png"));
             putValue(ACTION_COMMAND_KEY, "Action.Print");
             putValue(SHORT_DESCRIPTION,
                     GlobalResourcesManager.getString("Action.Print"));
@@ -536,8 +536,7 @@ public abstract class PrintPreviewComponent extends JComponent {
             super(GlobalResourcesManager.getString("Action.PageSetup"));
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/page-setup.png")));
+                    Icons.get("/com/ramussoft/gui/page-setup.png"));
             putValue(ACTION_COMMAND_KEY, "Action.PageSetup");
             putValue(SHORT_DESCRIPTION,
                     GlobalResourcesManager.getString("Action.PageSetup"));
@@ -564,10 +563,7 @@ public abstract class PrintPreviewComponent extends JComponent {
                     .getString("Action.PreviewColumnLayout"));
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(
-                            getClass()
-                                    .getResource(
-                                            "/com/ramussoft/gui/print/preview/previewLayoutCol.png")));
+                    Icons.get("/com/ramussoft/gui/print/preview/previewLayoutCol.png"));
             putValue(ACTION_COMMAND_KEY, "Action.PreviewColumnLayout");
             putValue(SHORT_DESCRIPTION,
                     GlobalResourcesManager
@@ -597,10 +593,7 @@ public abstract class PrintPreviewComponent extends JComponent {
             super(GlobalResourcesManager.getString("Action.PreviewGridLayout"));
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(
-                            getClass()
-                                    .getResource(
-                                            "/com/ramussoft/gui/print/preview/previewLayoutGrid.png")));
+                    Icons.get("/com/ramussoft/gui/print/preview/previewLayoutGrid.png"));
             putValue(ACTION_COMMAND_KEY, "Action.PreviewGridLayout");
             putValue(SHORT_DESCRIPTION,
                     GlobalResourcesManager

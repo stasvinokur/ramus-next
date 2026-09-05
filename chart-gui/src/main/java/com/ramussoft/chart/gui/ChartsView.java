@@ -38,6 +38,7 @@ import com.ramussoft.gui.qualifier.table.event.SelectionEvent;
 import com.ramussoft.gui.qualifier.table.event.SelectionListener;
 
 import static com.ramussoft.gui.qualifier.QualifierView.EDIT_NAME_CLICK_DELAY;
+import com.ramussoft.gui.common.Icons;
 
 public class ChartsView extends AbstractUniqueView implements UniqueView {
 
@@ -172,8 +173,7 @@ public class ChartsView extends AbstractUniqueView implements UniqueView {
 
         public CreateChartAction() {
             putValue(ACTION_COMMAND_KEY, "Action.CreateChart");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/add.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/add.png"));
         }
 
         @Override
@@ -195,8 +195,7 @@ public class ChartsView extends AbstractUniqueView implements UniqueView {
 
         public ChartPrefernecesAction() {
             putValue(ACTION_COMMAND_KEY, "Action.ChartPreferences");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/preferencies.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/preferencies.png"));
             setEnabled(false);
         }
 
@@ -228,8 +227,7 @@ public class ChartsView extends AbstractUniqueView implements UniqueView {
 
         public OpenChartAction() {
             putValue(ACTION_COMMAND_KEY, "Action.OpenChart");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/open.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/open.png"));
             setEnabled(false);
         }
 
@@ -251,8 +249,7 @@ public class ChartsView extends AbstractUniqueView implements UniqueView {
 
         public DeleteChartAction() {
             putValue(ACTION_COMMAND_KEY, "Action.DeleteChart");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/delete.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/delete.png"));
             setEnabled(false);
         }
 

@@ -48,6 +48,7 @@ import com.ramussoft.gui.attribute.OtherElementPlugin.RowAttributeWrapper;
 import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.qualifier.table.ElementsTable;
+import com.ramussoft.gui.common.Icons;
 
 public class OtherElementTableCellEditor extends AbstractCellEditor implements
         TableCellEditor {
@@ -569,8 +570,7 @@ public class OtherElementTableCellEditor extends AbstractCellEditor implements
                 edit();
             }
         });
-        edit.setIcon(new ImageIcon(getClass().getResource(
-                "/com/ramussoft/gui/edit.png")));
+        edit.setIcon(Icons.get("/com/ramussoft/gui/edit.png"));
         edit.setToolTipText(GlobalResourcesManager.getString("edit"));
         edit.setFocusable(false);
         edit.setPreferredSize(new Dimension(16, 16));

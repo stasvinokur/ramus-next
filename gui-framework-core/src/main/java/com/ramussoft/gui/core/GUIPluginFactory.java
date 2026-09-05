@@ -25,6 +25,7 @@ import java.util.StringTokenizer;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
+import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComponent;
@@ -90,6 +91,7 @@ import com.ramussoft.gui.common.event.ViewTitleListener;
 import com.ramussoft.gui.common.prefrence.Options;
 import com.ramussoft.gui.common.print.PrintPreviewComponent;
 import com.ramussoft.gui.common.print.RamusPrintable;
+import com.ramussoft.gui.common.Icons;
 
 public class GUIPluginFactory extends AbstractGUIPluginFactory {
 
@@ -803,10 +805,12 @@ public class GUIPluginFactory extends AbstractGUIPluginFactory {
             if (action == null) {
                 dockable.addSeparator();
             } else {
-                ImageIcon icon = (ImageIcon) action.getValue(Action.SMALL_ICON);
+                // Icon, not ImageIcon: the cast was gratuitous - this goes straight into
+                // CButton(String, Icon) - and narrowing it here is what would stop an icon
+                // that is not a bitmap from ever being used.
+                Icon icon = (Icon) action.getValue(Action.SMALL_ICON);
                 if (icon == null) {
-                    icon = new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/icon.png"));
+                    icon = Icons.get("/com/ramussoft/gui/icon.png");
                 }
                 final String command = (String) action
                         .getValue(Action.ACTION_COMMAND_KEY);

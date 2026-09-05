@@ -27,6 +27,7 @@ import com.ramussoft.idef0.IDEF0ViewPlugin;
 import com.ramussoft.idef0.NDataPluginFactory;
 import com.ramussoft.idef0.OpenDiagram;
 import com.ramussoft.idef0.TreeModel;
+import com.ramussoft.gui.common.Icons;
 
 public abstract class ModelsPanel extends AbstractModelsPanel {
 
@@ -56,8 +57,7 @@ public abstract class ModelsPanel extends AbstractModelsPanel {
                 TreeCellRenderer renderer = super.getCellRenderer();
                 if (renderer == null)
                     return null;
-                ((DefaultTreeCellRenderer) renderer).setLeafIcon(new ImageIcon(
-                        getClass().getResource("/images/function.png")));
+                ((DefaultTreeCellRenderer) renderer).setLeafIcon(Icons.get("/images/function.png"));
                 return renderer;
             }
         };
@@ -96,14 +96,11 @@ public abstract class ModelsPanel extends AbstractModelsPanel {
 
     private class Renderer extends DefaultTreeCellRenderer {
 
-        private Icon note = new ImageIcon(getClass().getResource(
-                "/images/note.png"));
+        private Icon note = Icons.get("/images/note.png");
 
-        private Icon function = new ImageIcon(getClass().getResource(
-                "/images/function.png"));
+        private Icon function = Icons.get("/images/function.png");
 
-        private Icon model = new ImageIcon(getClass().getResource(
-                "/images/idef0-model.png"));
+        private Icon model = Icons.get("/images/idef0-model.png");
 
         {
             setLeafIcon(note);

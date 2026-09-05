@@ -43,6 +43,7 @@ import com.ramussoft.gui.qualifier.table.TabledAttributePlugin;
 import com.ramussoft.gui.qualifier.table.TreeTableNode;
 import com.ramussoft.gui.qualifier.table.ValueGetter;
 import com.ramussoft.gui.qualifier.table.event.Closeable;
+import com.ramussoft.gui.common.Icons;
 
 public class TablePlugin extends AbstractAttributePlugin implements
         TabledAttributePlugin {
@@ -76,8 +77,7 @@ public class TablePlugin extends AbstractAttributePlugin implements
 
                 {
                     this.putValue(ACTION_COMMAND_KEY, "CreateAttribute");
-                    this.putValue(SMALL_ICON, new ImageIcon(getClass()
-                            .getResource("/com/ramussoft/gui/table/add.png")));
+                    this.putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/add.png"));
             this.putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(
                     KeyEvent.VK_ADD, java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
                 }
@@ -94,8 +94,7 @@ public class TablePlugin extends AbstractAttributePlugin implements
                 {
                     this.putValue(ACTION_COMMAND_KEY, "DeleteAttribute");
                     this.putValue(SMALL_ICON,
-                            new ImageIcon(getClass().getResource(
-                                    "/com/ramussoft/gui/table/delete.png")));
+                            Icons.get("/com/ramussoft/gui/table/delete.png"));
                     this.putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(
                             KeyEvent.VK_DELETE, 0));
                 }
@@ -314,10 +313,7 @@ public class TablePlugin extends AbstractAttributePlugin implements
                                 this
                                         .putValue(
                                                 SMALL_ICON,
-                                                new ImageIcon(
-                                                        getClass()
-                                                                .getResource(
-                                                                        "/com/ramussoft/gui/table/sort-incr.png")));
+                                                Icons.get("/com/ramussoft/gui/table/sort-incr.png"));
                             }
 
                             @Override

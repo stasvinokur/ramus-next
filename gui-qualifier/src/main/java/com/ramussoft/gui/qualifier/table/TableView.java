@@ -29,6 +29,7 @@ import com.ramussoft.gui.qualifier.table.event.SelectionEvent;
 import com.ramussoft.gui.qualifier.table.event.SelectionListener;
 
 import static com.ramussoft.gui.common.StringGetter.ACTION_STRING_GETTER;
+import com.ramussoft.gui.common.Icons;
 
 public abstract class TableView extends AbstractTableView implements TabView {
 
@@ -59,8 +60,7 @@ public abstract class TableView extends AbstractTableView implements TabView {
             putValue(Action.ACTION_COMMAND_KEY, "TableViewPreferencies");
             putValue(
                     Action.SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/table-preferencies.png")));
+                    Icons.get("/com/ramussoft/gui/table/table-preferencies.png"));
         }
 
         @Override

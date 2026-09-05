@@ -33,6 +33,7 @@ import javax.swing.text.html.HTMLEditorKit;
 import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.common.prefrence.Options;
+import com.ramussoft.gui.common.Icons;
 
 public class HTMLPrintable extends AbstractRamusPrintable implements Printable {
 
@@ -322,8 +323,7 @@ public class HTMLPrintable extends AbstractRamusPrintable implements Printable {
             super(GlobalResourcesManager.getString("Action.ExportToHTML"),
                     framework);
             putValue(ACTION_COMMAND_KEY, "Action.ExportToHTML");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/print/html.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/print/html.png"));
             putValue(SHORT_DESCRIPTION, GlobalResourcesManager
                     .getString("Action.ExportToHTML"));
         }

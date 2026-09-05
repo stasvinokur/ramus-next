@@ -32,6 +32,7 @@ import com.ramussoft.pb.master.model.DefaultProperties;
 import com.ramussoft.pb.master.model.DefaultProperty;
 import com.ramussoft.pb.master.model.Properties;
 import com.ramussoft.pb.master.model.Property;
+import com.ramussoft.gui.common.Icons;
 
 public class MainPanel extends JPanel {
 
@@ -53,8 +54,7 @@ public class MainPanel extends JPanel {
     private JXHeader header = new JXHeader();
 
     private final Action back = new AbstractAction(Factory.getString("Back"),
-            new ImageIcon(getClass().getResource(
-                    "/com/dsoft/pb/master/icons/back.png"))) {
+            Icons.get("/com/dsoft/pb/master/icons/back.png")) {
 
         public void actionPerformed(ActionEvent e) {
             MainPanel.this.back();
@@ -63,8 +63,7 @@ public class MainPanel extends JPanel {
     };
 
     private final Action next = new AbstractAction(Factory.getString("Next"),
-            new ImageIcon(getClass().getResource(
-                    "/com/dsoft/pb/master/icons/next.png"))) {
+            Icons.get("/com/dsoft/pb/master/icons/next.png")) {
 
         public void actionPerformed(ActionEvent e) {
             MainPanel.this.next();
@@ -73,8 +72,7 @@ public class MainPanel extends JPanel {
     };
 
     private final Action finish = new AbstractAction(Factory
-            .getString("Finish"), new ImageIcon(getClass().getResource(
-            "/com/dsoft/pb/master/icons/finish.png"))) {
+            .getString("Finish"), Icons.get("/com/dsoft/pb/master/icons/finish.png")) {
 
         public void actionPerformed(ActionEvent e) {
             MainPanel.this.finish();
@@ -83,8 +81,7 @@ public class MainPanel extends JPanel {
     };
 
     private final Action cancel = new AbstractAction(Factory
-            .getString("Cancel"), new ImageIcon(getClass().getResource(
-            "/com/dsoft/pb/master/icons/cancel.png"))) {
+            .getString("Cancel"), Icons.get("/com/dsoft/pb/master/icons/cancel.png")) {
 
         public void actionPerformed(ActionEvent e) {
             MainPanel.this.cancel();
@@ -181,8 +178,7 @@ public class MainPanel extends JPanel {
         // pane.setViewportView(textPane);
         // p.add(header, BorderLayout.CENTER);
 
-        header.setIcon(new ImageIcon(getClass().getResource(
-                "/com/dsoft/pb/master/icons/configure.png")));
+        header.setIcon(Icons.get("/com/dsoft/pb/master/icons/configure.png"));
 
         this.add(panel, BorderLayout.CENTER);
         this.add(createBottom(), BorderLayout.SOUTH);

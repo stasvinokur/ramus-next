@@ -22,6 +22,7 @@ import javax.swing.JScrollPane;
 import com.ramussoft.common.Attribute;
 import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GlobalResourcesManager;
+import com.ramussoft.gui.common.Icons;
 
 public class AttributeHierarchyEditorPanel extends JPanel {
 
@@ -137,8 +138,7 @@ public class AttributeHierarchyEditorPanel extends JPanel {
         if (jButton == null) {
             jButton = new JButton();
             jButton.setMnemonic(KeyEvent.VK_UNDEFINED);
-            jButton.setIcon(new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-right.png")));
+            jButton.setIcon(Icons.get("/com/ramussoft/gui/table/move-right.png"));
             jButton.setToolTipText(GlobalResourcesManager
                     .getString("MoveAttributeRight"));
             jButton.addActionListener(new ActionListener() {
@@ -158,8 +158,7 @@ public class AttributeHierarchyEditorPanel extends JPanel {
     private JButton getJButton1() {
         if (jButton1 == null) {
             jButton1 = new JButton();
-            jButton1.setIcon(new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-left.png")));
+            jButton1.setIcon(Icons.get("/com/ramussoft/gui/table/move-left.png"));
             jButton1.setToolTipText(GlobalResourcesManager
                     .getString("MoveAttributeLeft"));
             jButton1.addActionListener(new ActionListener() {
@@ -207,8 +206,7 @@ public class AttributeHierarchyEditorPanel extends JPanel {
         if (jButton2 == null) {
             jButton2 = new JButton();
             jButton2.setMnemonic(KeyEvent.VK_UNDEFINED);
-            jButton2.setIcon(new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-all-left.png")));
+            jButton2.setIcon(Icons.get("/com/ramussoft/gui/table/move-all-left.png"));
             jButton2.setToolTipText(GlobalResourcesManager
                     .getString("MoveAllAttributesLeft"));
             jButton2.addActionListener(new ActionListener() {
@@ -229,8 +227,7 @@ public class AttributeHierarchyEditorPanel extends JPanel {
     private JButton getJButton3() {
         if (jButton3 == null) {
             jButton3 = new JButton();
-            jButton3.setIcon(new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-all-right.png")));
+            jButton3.setIcon(Icons.get("/com/ramussoft/gui/table/move-all-right.png"));
             jButton3.setToolTipText(GlobalResourcesManager
                     .getString("MoveAllAttributesRight"));
             jButton3.addActionListener(new ActionListener() {
@@ -310,8 +307,7 @@ public class AttributeHierarchyEditorPanel extends JPanel {
     private JButton getJButton4() {
         if (jButton4 == null) {
             jButton4 = new JButton();
-            jButton4.setIcon(new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-down.png")));
+            jButton4.setIcon(Icons.get("/com/ramussoft/gui/table/move-down.png"));
             jButton4.setToolTipText(GlobalResourcesManager
                     .getString("MoveAttributeDown"));
             jButton4.addActionListener(new ActionListener() {
@@ -346,8 +342,7 @@ public class AttributeHierarchyEditorPanel extends JPanel {
     private JButton getJButton5() {
         if (jButton5 == null) {
             jButton5 = new JButton();
-            jButton5.setIcon(new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-up.png")));
+            jButton5.setIcon(Icons.get("/com/ramussoft/gui/table/move-up.png"));
             jButton5.setToolTipText(GlobalResourcesManager
                     .getString("MoveAttributeUp"));
             jButton5.addActionListener(new ActionListener() {

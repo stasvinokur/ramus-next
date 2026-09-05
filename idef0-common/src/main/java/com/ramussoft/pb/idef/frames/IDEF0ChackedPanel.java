@@ -19,6 +19,7 @@ import com.ramussoft.pb.Function;
 import com.ramussoft.pb.Row;
 import com.ramussoft.pb.idef.visual.MovingFunction;
 import com.ramussoft.pb.print.PageSelector;
+import com.ramussoft.gui.common.Icons;
 
 public class IDEF0ChackedPanel extends JPanel implements PageSelector {
 
@@ -236,8 +237,7 @@ public class IDEF0ChackedPanel extends JPanel implements PageSelector {
             jButton = new JButton();
             jButton.setMnemonic(KeyEvent.VK_UNDEFINED);
             jButton.setToolTipText("check_all");
-            jButton.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/check_all.gif")));
+            jButton.setIcon(Icons.get("/images/check_all.gif"));
             jButton.addActionListener(new java.awt.event.ActionListener() {
                 public void actionPerformed(final java.awt.event.ActionEvent e) {
                     checkAll();
@@ -263,8 +263,7 @@ public class IDEF0ChackedPanel extends JPanel implements PageSelector {
     private JButton getJButton1() {
         if (jButton1 == null) {
             jButton1 = new JButton();
-            jButton1.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/uncheck_all.gif")));
+            jButton1.setIcon(Icons.get("/images/uncheck_all.gif"));
             jButton1.setToolTipText("uncheck_all");
             jButton1.addActionListener(new java.awt.event.ActionListener() {
                 public void actionPerformed(final java.awt.event.ActionEvent e) {

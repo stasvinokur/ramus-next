@@ -36,6 +36,7 @@ import com.ramussoft.gui.qualifier.table.RowTreeTableComponent;
 import com.ramussoft.gui.qualifier.table.TreeTableNode;
 import com.ramussoft.gui.qualifier.table.event.SelectionEvent;
 import com.ramussoft.gui.qualifier.table.event.SelectionListener;
+import com.ramussoft.gui.common.Icons;
 
 public class ChartSetsView extends AbstractUniqueView implements UniqueView {
 
@@ -197,8 +198,7 @@ public class ChartSetsView extends AbstractUniqueView implements UniqueView {
 
         public CreateChartSetAction() {
             putValue(ACTION_COMMAND_KEY, "Action.CreateChartSet");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/add.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/add.png"));
         }
 
         @Override
@@ -219,8 +219,7 @@ public class ChartSetsView extends AbstractUniqueView implements UniqueView {
 
         public OpenChartSetAction() {
             putValue(ACTION_COMMAND_KEY, "Action.OpenChartSet");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/open.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/open.png"));
             setEnabled(false);
         }
 
@@ -242,8 +241,7 @@ public class ChartSetsView extends AbstractUniqueView implements UniqueView {
 
         public DeleteChartSetAction() {
             putValue(ACTION_COMMAND_KEY, "Action.DeleteChartSet");
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/delete.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/delete.png"));
             setEnabled(false);
         }
 

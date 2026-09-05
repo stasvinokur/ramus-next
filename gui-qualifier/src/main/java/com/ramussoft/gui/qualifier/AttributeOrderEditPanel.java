@@ -24,6 +24,7 @@ import javax.swing.table.TableCellEditor;
 
 import com.ramussoft.common.Attribute;
 import com.ramussoft.gui.common.GlobalResourcesManager;
+import com.ramussoft.gui.common.Icons;
 
 public class AttributeOrderEditPanel extends JPanel {
 
@@ -104,8 +105,7 @@ public class AttributeOrderEditPanel extends JPanel {
             putValue(ACTION_COMMAND_KEY, "MoveAttributeUp");
             putValue(SHORT_DESCRIPTION, GlobalResourcesManager
                     .getString("MoveAttributeUp"));
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-up.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/move-up.png"));
         }
 
         @Override
@@ -124,8 +124,7 @@ public class AttributeOrderEditPanel extends JPanel {
             putValue(ACTION_COMMAND_KEY, "MoveAttributeDown");
             putValue(SHORT_DESCRIPTION, GlobalResourcesManager
                     .getString("MoveAttributeDown"));
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/table/move-down.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/table/move-down.png"));
         }
 
         @Override

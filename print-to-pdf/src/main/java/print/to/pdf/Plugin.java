@@ -34,6 +34,7 @@ import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.common.PrintPlugin;
 import com.ramussoft.gui.common.print.RamusPrintable;
 import com.ramussoft.pb.print.IDEF0Printable;
+import com.ramussoft.gui.common.Icons;
 
 public class Plugin implements PrintPlugin {
 
@@ -57,8 +58,7 @@ public class Plugin implements PrintPlugin {
             this.printable = printable;
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/print/to/pdf/icon.jpg")));
+                    Icons.get("/print/to/pdf/icon.jpg"));
             putValue(ACTION_COMMAND_KEY, "Action.Print");
             putValue(SHORT_DESCRIPTION,
                     GlobalResourcesManager.getString("Action.Print") + " (PDF)");

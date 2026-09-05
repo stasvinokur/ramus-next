@@ -11,6 +11,7 @@ import javax.swing.JToolBar;
 
 import com.ramussoft.pb.Row;
 import com.ramussoft.pb.data.RowEditor;
+import com.ramussoft.gui.common.Icons;
 
 /**
  * @author ZDD
@@ -71,8 +72,7 @@ public class RowEditPanel extends JToolBar implements RowEditor {
         if (jButton2 == null) {
             jButton2 = new JButton();
             jButton2.setToolTipText("add_row");
-            jButton2.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/add.png")));
+            jButton2.setIcon(Icons.get("/images/add.png"));
             jButton2.addActionListener(new java.awt.event.ActionListener() {
                 public void actionPerformed(final java.awt.event.ActionEvent e) {
                     addRow();
@@ -91,8 +91,7 @@ public class RowEditPanel extends JToolBar implements RowEditor {
         if (jButton3 == null) {
             jButton3 = new JButton();
             jButton3.setToolTipText("insert_rows");
-            jButton3.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/insert.png")));
+            jButton3.setIcon(Icons.get("/images/insert.png"));
             jButton3.addActionListener(new java.awt.event.ActionListener() {
 
                 public void actionPerformed(final ActionEvent arg0) {
@@ -112,8 +111,7 @@ public class RowEditPanel extends JToolBar implements RowEditor {
         if (jButton4 == null) {
             jButton4 = new JButton();
             jButton4.setToolTipText("delete_row");
-            jButton4.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/remove.png")));
+            jButton4.setIcon(Icons.get("/images/remove.png"));
             jButton4.addActionListener(new java.awt.event.ActionListener() {
                 public void actionPerformed(final java.awt.event.ActionEvent e) {
                     removeRows();
@@ -132,8 +130,7 @@ public class RowEditPanel extends JToolBar implements RowEditor {
         if (jButton5 == null) {
             jButton5 = new JButton();
             jButton5.setToolTipText("add_child");
-            jButton5.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/add_child.png")));
+            jButton5.setIcon(Icons.get("/images/add_child.png"));
             jButton5.addActionListener(new java.awt.event.ActionListener() {
                 public void actionPerformed(final java.awt.event.ActionEvent e) {
                     addChild();
@@ -152,8 +149,7 @@ public class RowEditPanel extends JToolBar implements RowEditor {
         if (jButton6 == null) {
             jButton6 = new JButton();
             jButton6.setToolTipText("level_up");
-            jButton6.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/left.png")));
+            jButton6.setIcon(Icons.get("/images/left.png"));
             jButton6.addActionListener(new java.awt.event.ActionListener() {
                 public void actionPerformed(final java.awt.event.ActionEvent e) {
                     moveLeft();
@@ -172,8 +168,7 @@ public class RowEditPanel extends JToolBar implements RowEditor {
         if (jButton7 == null) {
             jButton7 = new JButton();
             jButton7.setToolTipText("level_down");
-            jButton7.setIcon(new ImageIcon(getClass().getResource(
-                    "/images/right.png")));
+            jButton7.setIcon(Icons.get("/images/right.png"));
             jButton7.addActionListener(new java.awt.event.ActionListener() {
                 public void actionPerformed(final java.awt.event.ActionEvent e) {
                     moveRight();

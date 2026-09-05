@@ -37,6 +37,7 @@ import com.ramussoft.gui.common.UniqueView;
 import com.ramussoft.gui.common.event.ActionChangeEvent;
 import com.ramussoft.gui.common.event.ActionChangeListener;
 import com.ramussoft.gui.qualifier.Commands;
+import com.ramussoft.gui.common.Icons;
 
 public class BranchView extends AbstractUniqueView implements UniqueView {
 
@@ -52,10 +53,8 @@ public class BranchView extends AbstractUniqueView implements UniqueView {
 
     private long actualBranch;
 
-/*	private ImageIcon branch = new ImageIcon(getClass().getResource(
-            "/com/ramussoft/gui/branch-down.png"));
-	private ImageIcon branchTree = new ImageIcon(getClass().getResource(
-			"/com/ramussoft/gui/branch-down-right.png"));*/
+/*	private ImageIcon branch = Icons.get("/com/ramussoft/gui/branch-down.png");
+	private ImageIcon branchTree = Icons.get("/com/ramussoft/gui/branch-down-right.png");*/
 
     public BranchView(GUIFramework framework) {
         super(framework);
@@ -192,8 +191,7 @@ public class BranchView extends AbstractUniqueView implements UniqueView {
             putValue(ACTION_COMMAND_KEY, "Action.AddBranchChild");
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/branch-down.png")));
+                    Icons.get("/com/ramussoft/gui/branch-down.png"));
             setEnabled(false);
         }
 
@@ -216,8 +214,7 @@ public class BranchView extends AbstractUniqueView implements UniqueView {
             putValue(ACTION_COMMAND_KEY, "Action.ActivateBranch");
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/branch-actual.png")));
+                    Icons.get("/com/ramussoft/gui/branch-actual.png"));
             setEnabled(false);
         }
 
@@ -244,8 +241,7 @@ public class BranchView extends AbstractUniqueView implements UniqueView {
             putValue(ACTION_COMMAND_KEY, "Action.EditBranchComment");
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/table/edit-comment-branch.png")));
+                    Icons.get("/com/ramussoft/gui/table/edit-comment-branch.png"));
             setEnabled(false);
         }
 

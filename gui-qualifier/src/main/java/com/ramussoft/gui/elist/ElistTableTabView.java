@@ -30,6 +30,7 @@ import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.TabView;
 import com.ramussoft.gui.common.event.ActionEvent;
 import com.ramussoft.gui.common.event.ViewTitleEvent;
+import com.ramussoft.gui.common.Icons;
 
 public class ElistTableTabView extends AbstractView implements TabView {
 
@@ -65,8 +66,7 @@ public class ElistTableTabView extends AbstractView implements TabView {
             putValue(ACTION_COMMAND_KEY, "Action.ElementList.Revert");
             putValue(
                     SMALL_ICON,
-                    new ImageIcon(getClass().getResource(
-                            "/com/ramussoft/gui/revert.png")));
+                    Icons.get("/com/ramussoft/gui/revert.png"));
             putValue(SELECTED_KEY, false);
         }
 

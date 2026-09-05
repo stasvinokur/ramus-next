@@ -8,6 +8,7 @@ import javax.swing.tree.TreePath;
 import org.jdesktop.swingx.JXTreeTable;
 import org.jdesktop.swingx.JXTree.DelegatingRenderer;
 import org.jdesktop.swingx.treetable.TreeTableModel;
+import com.ramussoft.gui.common.Icons;
 
 public class BranchTreeTable extends JXTreeTable {
     /**
@@ -26,12 +27,9 @@ public class BranchTreeTable extends JXTreeTable {
     public BranchTreeTable(TreeTableModel treeModel, BranchView branchView) {
         super(treeModel);
         this.branchView = branchView;
-        branch = new ImageIcon(getClass().getResource(
-                "/com/ramussoft/gui/branch-down.png"));
-        branchActual = new ImageIcon(getClass().getResource(
-                "/com/ramussoft/gui/branch-actual.png"));
-        branchTree = new ImageIcon(getClass().getResource(
-                "/com/ramussoft/gui/branch-down-right.png"));
+        branch = Icons.image("/com/ramussoft/gui/branch-down.png");
+        branchActual = Icons.image("/com/ramussoft/gui/branch-actual.png");
+        branchTree = Icons.image("/com/ramussoft/gui/branch-down-right.png");
     }
 
     @Override

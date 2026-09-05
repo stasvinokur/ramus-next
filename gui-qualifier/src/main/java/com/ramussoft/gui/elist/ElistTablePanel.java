@@ -20,6 +20,7 @@ import com.ramussoft.database.common.Row;
 import com.ramussoft.database.common.RowSet;
 import com.ramussoft.gui.attribute.icon.IconFactory;
 import com.ramussoft.gui.common.GUIFramework;
+import com.ramussoft.gui.common.Icons;
 
 public class ElistTablePanel extends JTree {
 
@@ -81,12 +82,9 @@ public class ElistTablePanel extends JTree {
     };
 
     public ElistTablePanel(GUIFramework framework, Qualifier qualifier) {
-        leafIcon = new ImageIcon(getClass().getResource(
-                "/com/ramussoft/gui/table/sheet.png"));
-        folderIcon = new ImageIcon(getClass().getResource(
-                "/com/ramussoft/gui/table/folder.png"));
-        folderSheetIcon = new ImageIcon(getClass().getResource(
-                "/com/ramussoft/gui/table/folder-sheet.png"));
+        leafIcon = Icons.image("/com/ramussoft/gui/table/sheet.png");
+        folderIcon = Icons.image("/com/ramussoft/gui/table/folder.png");
+        folderSheetIcon = Icons.image("/com/ramussoft/gui/table/folder-sheet.png");
         setRootVisible(false);
         List<Attribute> list = qualifier.getAttributes();
         if (list.size() > 0)

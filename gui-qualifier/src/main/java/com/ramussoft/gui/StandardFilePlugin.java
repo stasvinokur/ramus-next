@@ -34,6 +34,7 @@ import com.ramussoft.gui.common.ActionLevel;
 import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.common.prefrence.Options;
 import com.ramussoft.gui.qualifier.QualifierSelectComponent;
+import com.ramussoft.gui.common.Icons;
 
 public class StandardFilePlugin extends AbstractViewPlugin {
 
@@ -136,8 +137,7 @@ public class StandardFilePlugin extends AbstractViewPlugin {
 
         public PrintPreviewAction() {
             putValue(ACTION_COMMAND_KEY, ACTION_PRINT_PREVIEW);
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/print-preview.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/print-preview.png"));
         }
 
         @Override
@@ -157,8 +157,7 @@ public class StandardFilePlugin extends AbstractViewPlugin {
 
         public PrintAction() {
             putValue(ACTION_COMMAND_KEY, ACTION_PRINT);
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/print.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/print.png"));
             putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(KeyEvent.VK_P,
                     java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMask()));
         }
@@ -181,8 +180,7 @@ public class StandardFilePlugin extends AbstractViewPlugin {
 
         public PageSetupAction() {
             putValue(ACTION_COMMAND_KEY, ACTION_PAGE_SETUP);
-            putValue(SMALL_ICON, new ImageIcon(getClass().getResource(
-                    "/com/ramussoft/gui/page-setup.png")));
+            putValue(SMALL_ICON, Icons.get("/com/ramussoft/gui/page-setup.png"));
         }
 
         @Override
