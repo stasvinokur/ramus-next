@@ -241,3 +241,39 @@ jobs:
             dest/macos/*.dmg
             dest/windows/*.msi
           if-no-files-found: error
+
+  # A tag is the only thing that publishes. Everything above runs on every push and pull
+  # request and leaves its artifacts attached to the run.
+  release:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Check that all three installers are here
+        run: |
+          set -euo pipefail
+          ls -la artifacts
+          for expected in RamusNext-arm64.dmg RamusNext-x86_64.dmg RamusNext-x64.msi; do
+            # package sets fail-fast: false so that one broken runner does not cost the other
+            # two artifacts - which means the release is where a missing one has to be caught.
+            test -f "artifacts/$expected" || { echo "missing $expected"; exit 1; }
+          done
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            artifacts/RamusNext-arm64.dmg \
+            artifacts/RamusNext-x86_64.dmg \
+            artifacts/RamusNext-x64.msi
