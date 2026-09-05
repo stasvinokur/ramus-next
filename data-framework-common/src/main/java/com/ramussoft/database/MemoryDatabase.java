@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.ZipException;
 
 import com.ramussoft.common.AccessRules;
@@ -214,39 +215,40 @@ public class MemoryDatabase extends AbstractDatabase {
         return engine;
     }
 
-    public static Connection createStaticConnection() throws SQLException {
+    /**
+     * VALUE became a reserved word in H2 2.x, and it is the column name that
+     * {@code TextPersistent}, {@code LongPersistent} and their siblings generate for the
+     * value of an attribute - so without this every attribute table fails to gain its one
+     * meaningful column. Quoting the identifier instead is not an option: the model file
+     * records column names as the driver reports them, and quoting would change their case
+     * and with it every file already saved.
+     */
+    private static final String OPTIONS = ";NON_KEYWORDS=VALUE";
 
+    /**
+     * The name used to be the millisecond clock alone, so two databases created inside the
+     * same millisecond - two models opened together - would have silently shared one
+     * in-memory database.
+     */
+    private static final AtomicLong DATABASES = new AtomicLong();
+
+    private static Connection createH2Connection() throws SQLException {
         try {
             Class.forName("org.h2.Driver");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        String url = "jdbc:h2:mem:~/" + System.currentTimeMillis() + ";";
-        Connection conn = DriverManager.getConnection(url, "sa", "");
+        String url = "jdbc:h2:mem:~/" + System.currentTimeMillis() + "_"
+                + DATABASES.incrementAndGet() + OPTIONS;
+        return DriverManager.getConnection(url, "sa", "");
+    }
 
-        return conn;
-
-		/*
-         * try { Class.forName("org.postgresql.Driver"); } catch
-		 * (ClassNotFoundException e) { e.printStackTrace(); } return
-		 * DriverManager
-		 * .getConnection("jdbc:postgresql://127.0.0.1/ramus_public",
-		 * "postgres", "postgres");
-		 */
-
+    public static Connection createStaticConnection() throws SQLException {
+        return createH2Connection();
     }
 
     public Connection createConnection() throws SQLException {
-
-        try {
-            Class.forName("org.h2.Driver");
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-        String url = "jdbc:h2:mem:~/" + System.currentTimeMillis() + ";";
-        Connection conn = DriverManager.getConnection(url, "sa", "");
-
-        return conn;
+        return createH2Connection();
 
 		/*
          * try { Class.forName("org.postgresql.Driver"); } catch
