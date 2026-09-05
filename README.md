@@ -28,49 +28,6 @@ In the console, navigate to the project folder and run:
 ./gradlew :local-client:runLocal
 ```
 
-### Step 3: Test the Application
-
-#### For Linux (Tested on Ubuntu 20.04 and Fedora 34)
-
-1. **Clone the Repository:**
-
-   ```bash
-   git clone https://github.com/stasvinokur/ramus-next.git
-   ```
-
-2. **Navigate to the Project Folder:**
-
-   ```bash
-   cd ramus-next
-   ```
-
-3. **Run the Application:**
-
-   ```bash
-   ./gradlew :local-client:runLocal
-   ```
-
-### Optional: Create a Shortcut to Launch the Application
-
-1. Open your `.bash_aliases` file:
-   ```bash
-   nano ~/.bash_aliases
-   ```
-
-2. Add the following alias to easily launch the application:
-
-   ```bash
-   alias ramus='cd ~/path/to/ramus-next/ && ./gradlew :local-client:runLocal &'
-   ```
-
-3. Save the file and reload it:
-
-   ```bash
-   source ~/.bash_aliases
-   ```
-
-4. Now, you can simply run `ramus` in the terminal to launch the application.
-
 ## Installers
 
 Ramus Next ships three installers, each with a bundled Java runtime, so nothing has to be installed
@@ -204,7 +161,6 @@ Ramus Next stores its settings in a directory named after the application, so th
 |---|---|---|
 | macOS | `~/Library/Application Support/Ramus` | `~/Library/Application Support/Ramus Next` |
 | Windows | `%APPDATA%\Ramussoft\Ramus` | `%APPDATA%\Ramussoft\Ramus Next` |
-| Linux | `~/.ramus` | `~/.ramus-next` |
 
 Nothing is deleted — the old directory is simply ignored, and Ramus Next starts with defaults.
 **To keep your window layout, preferences and dictionaries, rename the directory by hand before the
