@@ -75,19 +75,26 @@ interface PackagingServices {
     @javax.inject.Inject FileSystemOperations getFs()
 }
 
-def macWorkDir      = layout.buildDirectory.dir('macos')
-def iconsetDir      = macWorkDir.map { it.dir('AppIcon.iconset') }
-def icnsFile        = macWorkDir.map { it.file("${appName}.icns") }
-def jpkgInputDir    = macWorkDir.map { it.dir('jpackage-input') }
-def runtimeImageDir = macWorkDir.map { it.dir('runtime') }
+// The staging area is no longer macOS-only: the fat jar and the jlink runtime image are
+// built the same way for both installers, and only the icon differs.
+def packagingWorkDir = layout.buildDirectory.dir('packaging')
+def iconsetDir      = packagingWorkDir.map { it.dir('AppIcon.iconset') }
+def icnsFile        = packagingWorkDir.map { it.file("${appName}.icns") }
+def jpkgInputDir    = packagingWorkDir.map { it.dir('jpackage-input') }
+def runtimeImageDir = packagingWorkDir.map { it.dir('runtime') }
 def iconSourceDir   = rootProject.layout.projectDirectory.dir('packaging/macos/AppIcon.appiconset')
+def windowsIcon     = rootProject.layout.projectDirectory.file('packaging/windows/RamusNext.ico')
 def dmgDestDir      = rootProject.layout.projectDirectory.dir('dest/macos')
+def msiDestDir      = rootProject.layout.projectDirectory.dir('dest/windows')
 
 // A Provider survives configuration-cache serialization; reading System.getProperty inside a
 // task action would be an untracked build input. Replaces the four uses of Gradle's internal
 // org.gradle.internal.os.OperatingSystem, which carries no compatibility guarantee.
 def isMacOs = providers.systemProperty('os.name')
         .map { it.toLowerCase(Locale.ROOT).startsWith('mac') }
+        .orElse(false)
+def isWindows = providers.systemProperty('os.name')
+        .map { it.toLowerCase(Locale.ROOT).startsWith('windows') }
         .orElse(false)
 
 // The JDK that supplies jdeps/jlink/jpackage AND becomes the runtime inside the installer.
@@ -204,7 +211,7 @@ tasks.register('jlinkImage') {
     dependsOn 'prepareJpackageInput'
 
     def services = objects.newInstance(PackagingServices)
-    def onMac = isMacOs
+    def onSupportedOs = isMacOs.zip(isWindows) { mac, win -> mac || win }
     def appJar = jpkgInputDir.map { it.file('ramus.jar') }
     def imageDir = runtimeImageDir
     def javaHomeP = packagingHome
@@ -213,6 +220,7 @@ tasks.register('jlinkImage') {
     def jlinkBinOverride = jlinkOverride
     def jmodsPathOverride = jmodsOverride
     def useJlink = wantJlink
+    def onWindows = isWindows
 
     inputs.file(appJar).withPropertyName('appJar')
     inputs.property('packagingJavaHome', javaHomeP)
@@ -223,9 +231,9 @@ tasks.register('jlinkImage') {
 
     doLast {
         def target = imageDir.get().asFile
-        if (!onMac.get()) {
+        if (!onSupportedOs.get()) {
             target.deleteDir()
-            logger.lifecycle 'jlinkImage skipped: not macOS'
+            logger.lifecycle 'jlinkImage skipped: neither macOS nor Windows'
             return
         }
         if (!useJlink) {
@@ -236,8 +244,9 @@ tasks.register('jlinkImage') {
             return
         }
         def javaHome = javaHomeP.get()
-        def jdepsBin = jdepsBinOverride ?: new File(javaHome, 'bin/jdeps').absolutePath
-        def jlinkBin = jlinkBinOverride ?: new File(javaHome, 'bin/jlink').absolutePath
+        def exe = onWindows.get() ? '.exe' : ''
+        def jdepsBin = jdepsBinOverride ?: new File(javaHome, "bin/jdeps${exe}").absolutePath
+        def jlinkBin = jlinkBinOverride ?: new File(javaHome, "bin/jlink${exe}").absolutePath
 
         // Works across JDK layouts (Temurin/Oracle/GraalVM)
         def modulePath = [jmodsPathOverride ? new File(jmodsPathOverride) : null,
@@ -318,26 +327,55 @@ tasks.register('jlinkImage') {
     }
 }
 
-// The static part of the jpackage command line, known at configuration time so it can serve
-// as a real task input - with Exec + doFirst, changing --vendor would not invalidate anything.
-def staticJpackageArgs = [
-        '--type', 'dmg',
-        '--dest', dmgDestDir.asFile.absolutePath,
-        '--name', appName,
+// The static parts of the jpackage command line, known at configuration time so they can
+// serve as real task inputs - with Exec + doFirst, changing --vendor would not invalidate
+// anything.
+def commonJpackageArgs = [
         '--app-version', appVersion,
         '--main-jar', 'ramus.jar',
         '--main-class', 'com.ramussoft.local.Main',
         '--vendor', 'Ramus Next Project',
         '--copyright', 'Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy; (C) 2026 Stanislav Vinokur. GPL-3.0.',
         '--description', 'Ramus Next - IDEF0 and DFD business process modeller.',
-        '--mac-package-identifier', 'com.stasvinokur.ramusnext',
-        '--mac-package-name', appDisplayName,
-        '--java-options', '-Dapple.laf.useScreenMenuBar=true',
         // POI 5 brings log4j-api with no implementation, so the first Excel operation
         // prints "Log4j API could not find a logging provider" to stderr. Point it at the
         // built-in simple logger instead. No spaces in the value, which matters here: see
         // the note below about how jpackage splits --java-options.
         '--java-options', '-Dlog4j2.loggerContextFactory=org.apache.logging.log4j.simple.SimpleLoggerContextFactory',
+]
+
+def macJpackageArgs = commonJpackageArgs + [
+        '--type', 'dmg',
+        '--dest', dmgDestDir.asFile.absolutePath,
+        '--name', appName,
+        '--mac-package-identifier', 'com.stasvinokur.ramusnext',
+        '--mac-package-name', appDisplayName,
+        '--java-options', '-Dapple.laf.useScreenMenuBar=true',
+]
+
+def windowsJpackageArgs = commonJpackageArgs + [
+        '--type', 'msi',
+        '--dest', msiDestDir.asFile.absolutePath,
+        // The display name, not appName, and the asymmetry with macOS is deliberate. On
+        // Windows the launcher name IS the user-visible name in every place there is - the
+        // Start menu entry, Add/Remove Programs, the folder under Program Files - and there
+        // is no second field to carry it, whereas macOS has CFBundleName. This is the first
+        // thing to look at if the Windows job fails: --name with a space has to survive the
+        // WiX 3 template.
+        '--name', appDisplayName,
+        // Without this, jpackage mints a fresh product GUID on every build, so installing
+        // 2.0.3 would not replace 2.0.2 - two entries in Add/Remove Programs, two shortcuts,
+        // two copies under Program Files. It is the identity of the product, not of the
+        // version, so it is generated once and never changes again.
+        '--win-upgrade-uuid', '11406996-D9AE-442B-80DC-5ED748B8D637',
+        '--win-menu',
+        '--win-menu-group', appDisplayName,
+        '--win-shortcut',
+        // Per-machine, which is what the old NSIS installer did and what the application
+        // expects: it never writes into its own directory, settings go to %APPDATA%. Note
+        // that this is a one-way door - a per-user MSI cannot upgrade a per-machine install,
+        // so changing it after a release means everyone reinstalls by hand.
+        '--win-dir-chooser',
 ]
 // Deliberately NOT passing -Dapple.awt.application.name: jpackage splits every --java-options
 // value on whitespace when it writes the .cfg, so a name containing a space becomes two
@@ -358,7 +396,7 @@ tasks.register('jpackageDmg') {
     def inputDir = jpkgInputDir
     def icns = icnsFile
     def destDir = dmgDestDir
-    def args = staticJpackageArgs
+    def args = macJpackageArgs
     def outDmg = dmgDestDir.file("${appName}-${appVersion}.dmg")
 
     inputs.dir(inputDir).withPropertyName('jpackageInput')
@@ -409,6 +447,89 @@ tasks.register('macDmg') {
     group = 'distribution'
     description = 'Builds a DMG at dest/macos using jpackage.'
     dependsOn 'jpackageDmg'
+}
+
+// --- Windows packaging (MSI via jpackage) ---
+
+// The .rsf association the NSIS installer used to register. Runner.java opens args[0], so
+// double-clicking a model is a feature the application already has and only the installer was
+// missing. Written rather than committed because the icon has to be an absolute path.
+tasks.register('prepareWindowsFileAssociations', WriteProperties) {
+    group = 'distribution'
+    description = 'Writes the .rsf file-association descriptor for jpackage.'
+    destinationFile = packagingWorkDir.map { it.file('rsf-association.properties') }
+    property 'extension', 'rsf'
+    property 'mime-type', 'application/x-ramus-model'
+    property 'description', "${appDisplayName} model"
+    property 'icon', windowsIcon.asFile.absolutePath
+}
+
+tasks.register('jpackageMsi') {
+    group = 'distribution'
+    description = 'Runs jpackage to produce the Windows MSI.'
+    dependsOn 'prepareJpackageInput', 'jlinkImage', 'prepareWindowsFileAssociations'
+
+    def services = objects.newInstance(PackagingServices)
+    def onWindows = isWindows
+    def javaHomeP = packagingHome
+    def imageDir = runtimeImageDir
+    def inputDir = jpkgInputDir
+    def icon = windowsIcon
+    def destDir = msiDestDir
+    def args = windowsJpackageArgs
+    def associations = tasks.named('prepareWindowsFileAssociations')
+            .flatMap { it.destinationFile }
+    def outMsi = msiDestDir.file("${appDisplayName}-${appVersion}.msi")
+
+    inputs.dir(inputDir).withPropertyName('jpackageInput')
+    inputs.file(icon).withPropertyName('icon')
+    inputs.file(associations).withPropertyName('fileAssociations')
+    inputs.files(imageDir).withPropertyName('runtimeImage')
+    inputs.property('jpackageArgs', args)
+    inputs.property('packagingJavaHome', javaHomeP)
+    outputs.file(outMsi).withPropertyName('msi')
+
+    doLast {
+        if (!onWindows.get()) {
+            // Not a skip. jpackage builds only for the OS it runs on, so an MSI cannot be
+            // produced from macOS or Linux by any means, and pretending otherwise would let
+            // a release go out without one.
+            throw new GradleException('jpackageMsi must be executed on Windows')
+        }
+        def javaHome = javaHomeP.get()
+        destDir.asFile.mkdirs()
+
+        def msi = outMsi.asFile
+        if (msi.exists()) {
+            msi.delete()
+            logger.lifecycle "Removed previous ${msi.name}"
+        }
+
+        // Same reason as the DMG: the image is produced by the task this one depends on, so
+        // it does not exist at configuration time and the choice has to be made here.
+        def image = imageDir.get().asFile
+        def hasImage = new File(image, 'bin/java.exe').exists()
+        def runtimePath = hasImage ? image.absolutePath : javaHome
+        if (hasImage) {
+            logger.lifecycle "Bundling the jlink runtime image from ${image}"
+        } else {
+            logger.lifecycle "Bundling the full JDK from ${javaHome} (no jlink image available)"
+        }
+
+        services.exec.exec {
+            commandLine([new File(javaHome, 'bin/jpackage.exe').absolutePath] + args +
+                    ['--input', inputDir.get().asFile.absolutePath,
+                     '--icon', icon.asFile.absolutePath,
+                     '--file-associations', associations.get().asFile.absolutePath,
+                     '--runtime-image', runtimePath])
+        }
+    }
+}
+
+tasks.register('windowsMsi') {
+    group = 'distribution'
+    description = 'Builds an MSI at dest/windows using jpackage.'
+    dependsOn 'jpackageMsi'
 }
 
 // Sync rather than Copy: the old task used Contents/MacOS as its destination root, so a

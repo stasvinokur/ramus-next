@@ -1,0 +1,243 @@
+name: Build
+
+# jpackage produces an installer only for the operating system it is running on, so a Windows
+# MSI cannot be built from a Mac by any means and the DMG for Apple Silicon cannot be built on
+# an Intel runner. That is the whole reason this file exists: the installers are not a
+# convenience here, they are the only way to produce two of the three artifacts at all.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Compilation and the tests do not depend on the platform, so they run once and fail fast,
+  # before three packaging jobs spend ten minutes each on jlink and jpackage.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew build
+      - name: Publish the test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/build/test-results/test/*.xml'
+          if-no-files-found: ignore
+
+  package:
+    needs: check
+    strategy:
+      # One unavailable runner image must not cost the other two artifacts.
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            os: macos
+            arch: arm64
+          # macos-latest is Apple Silicon now, and a jlink runtime image is native code:
+          # a DMG built there does not start on an Intel Mac at all, because Rosetta
+          # translates x86_64 to arm64 and not the other way round. jpackage cannot make a
+          # universal bundle, so the second Mac is not optional.
+          - runner: macos-15-intel
+            os: macos
+            arch: x86_64
+          - runner: windows-latest
+            os: windows
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # jpackage below JDK 24 shells out to WiX 3's candle.exe and light.exe by name, and
+      # WiX 4 and 5 do not provide them. The image ships 3.14 but does not put it on PATH,
+      # so without this step the job would fail after five minutes of jlink work.
+      - name: Put WiX 3 on the PATH
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "${env:WIX}bin",
+            "C:\Program Files (x86)\WiX Toolset v3.14\bin",
+            "C:\Program Files (x86)\WiX Toolset v3.11\bin"
+          )
+          $found = $candidates | Where-Object { $_ -and (Test-Path (Join-Path $_ 'candle.exe')) } | Select-Object -First 1
+          if (-not $found) {
+            # The runner image is not a contract; if it drifts, fetch the toolset rather
+            # than fail.
+            Write-Host "WiX 3 not found in the image, downloading it"
+            $zip = "$env:RUNNER_TEMP\wix3.zip"
+            Invoke-WebRequest -Uri 'https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip' -OutFile $zip
+            $found = "$env:RUNNER_TEMP\wix3"
+            Expand-Archive -Path $zip -DestinationPath $found -Force
+          }
+          Write-Host "Using WiX at $found"
+          & (Join-Path $found 'candle.exe') -? | Select-Object -First 1
+          Add-Content -Path $env:GITHUB_PATH -Value $found
+
+      - name: Build the DMG
+        if: matrix.os == 'macos'
+        run: ./gradlew :local-client:macDmg
+
+      - name: Build the MSI
+        if: matrix.os == 'windows'
+        run: ./gradlew :local-client:windowsMsi
+
+      # Everything below is the part that makes a green tick mean something. None of it was
+      # possible when the DMG was reproducible on exactly one laptop.
+      - name: Inspect the DMG
+        if: matrix.os == 'macos'
+        run: |
+          set -euo pipefail
+          dmg=$(ls dest/macos/*.dmg)
+          echo "::group::$dmg"
+          ls -la "$dmg"
+
+          size=$(stat -f%z "$dmg")
+          # A DMG carrying only the fat jar and no runtime image lands near 30 MB. The real
+          # one is around 75. Anything under 45 means jlink silently fell back or the runtime
+          # went missing, which is exactly the failure that shipped once already.
+          if [ "$size" -lt 47185920 ]; then
+            echo "DMG is only $size bytes - the bundled runtime is probably missing"; exit 1
+          fi
+
+          mount=$(mktemp -d)
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount"
+          app="$mount/RamusNext.app"
+          test -d "$app"
+
+          plist="$app/Contents/Info.plist"
+          for key in CFBundleName CFBundleIdentifier CFBundleShortVersionString CFBundleExecutable; do
+            printf '%-30s %s\n' "$key" "$(/usr/libexec/PlistBuddy -c "Print :$key" "$plist")"
+          done
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = com.stasvinokur.ramusnext
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$plist")" = 'Ramus Next'
+
+          # jlink writes one directory per included module under legal/. jdeps cannot see
+          # either of these, so they are added by hand in the build - and this is what
+          # notices if that ever stops happening.
+          for module in jdk.localedata jdk.crypto.ec; do
+            test -d "$app/Contents/runtime/Contents/Home/legal/$module" \
+              || { echo "runtime image is missing $module"; exit 1; }
+          done
+
+          cfg="$app/Contents/app/RamusNext.cfg"
+          echo "--- $cfg"
+          cat "$cfg"
+          # jpackage splits every --java-options value on whitespace when it writes this file,
+          # so a value containing a space silently becomes two entries and the second one
+          # reaches the JVM as a main class. That is how the app once died with
+          # "Could not find or load main class Next". Every real option starts with a dash;
+          # a fragment of a split one does not.
+          # Not `grep -qv`: BSD grep, which is what the macOS runners have, returns 1 for
+          # that combination even when -v alone matches, so the check would never fire.
+          fragments=$(grep '^java-options=' "$cfg" | grep -v '^java-options=-' || true)
+          if [ -n "$fragments" ]; then
+            echo "a java-option in the cfg does not start with a dash - it is a fragment:"
+            echo "$fragments"
+            exit 1
+          fi
+
+          echo "--- architecture"
+          file "$app/Contents/MacOS/RamusNext"
+          file "$app/Contents/runtime/Contents/Home/bin/java" | tee /tmp/arch.txt
+          grep -q "${{ matrix.arch }}" /tmp/arch.txt \
+            || { echo "runtime is not ${{ matrix.arch }}"; exit 1; }
+
+          echo "--- signature (expected: ad-hoc until a Developer ID exists)"
+          codesign -dv --verbose=2 "$app" 2>&1 || true
+          spctl --assess --type execute "$app" 2>&1 || true
+
+          hdiutil detach "$mount"
+          echo "::endgroup::"
+
+      - name: Inspect the MSI
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Otherwise PowerShell 7.4 turns any non-zero native exit code into a terminating
+          # error, and the commands below are checked by hand where it matters.
+          $PSNativeCommandUseErrorActionPreference = $false
+          $msi = Get-ChildItem dest\windows\*.msi | Select-Object -First 1
+          "$($msi.FullName)  $([math]::Round($msi.Length/1MB,1)) MB"
+          if ($msi.Length -lt 47185920) { throw "MSI is only $($msi.Length) bytes - the bundled runtime is probably missing" }
+
+          # A silent per-machine install is the only way to check what the installer actually
+          # does, as opposed to what the build was asked to do.
+          $log = "$env:RUNNER_TEMP\install.log"
+          $p = Start-Process msiexec -ArgumentList "/i `"$($msi.FullName)`" /qn /norestart /l*v `"$log`"" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content $log -Tail 60; throw "msiexec exited $($p.ExitCode)" }
+
+          $installed = "C:\Program Files\Ramus Next"
+          if (-not (Test-Path $installed)) { throw "per-machine install did not land in $installed" }
+          if (-not (Test-Path "$installed\Ramus Next.exe")) { throw "launcher missing" }
+
+          foreach ($module in 'jdk.localedata', 'jdk.crypto.ec') {
+            if (-not (Test-Path "$installed\runtime\legal\$module")) { throw "runtime image is missing $module" }
+          }
+
+          $cfg = "$installed\app\Ramus Next.cfg"
+          "--- $cfg"
+          Get-Content $cfg
+          # Same trap as on macOS: a --java-options value containing a space is written as two
+          # entries and the second one arrives as a main class. Every real option starts with
+          # a dash; a fragment of a split one does not.
+          $fragments = Get-Content $cfg | Where-Object { $_ -match '^java-options=' -and $_ -notmatch '^java-options=-' }
+          if ($fragments) { $fragments; throw "a java-option in the cfg is a fragment of a split value" }
+
+          "--- Start menu"
+          Get-ChildItem "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Ramus Next" -ErrorAction SilentlyContinue
+
+          "--- .rsf association"
+          cmd /c assoc .rsf 2>&1
+
+          "--- signature (expected: unsigned until an Authenticode certificate exists)"
+          Get-AuthenticodeSignature $msi.FullName | Format-List Status, StatusMessage
+
+          $p = Start-Process msiexec -ArgumentList "/x `"$($msi.FullName)`" /qn /norestart" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "uninstall exited $($p.ExitCode)" }
+
+      # Two DMGs cannot share a name, and a user who downloads the wrong one gets an
+      # application that does not start rather than one that is slow.
+      - name: Name the artifact after the architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ matrix.os }}" = macos ]; then
+            src=$(ls dest/macos/*.dmg)
+            mv "$src" "dest/macos/RamusNext-${{ matrix.arch }}.dmg"
+          else
+            src=$(ls dest/windows/*.msi)
+            mv "$src" "dest/windows/RamusNext-${{ matrix.arch }}.msi"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RamusNext-${{ matrix.os }}-${{ matrix.arch }}
+          path: |
+            dest/macos/*.dmg
+            dest/windows/*.msi
+          if-no-files-found: error

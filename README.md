@@ -71,19 +71,37 @@ In the console, navigate to the project folder and run:
 
 4. Now, you can simply run `ramus` in the terminal to launch the application.
 
-## macOS
+## Installers
 
-Ramus Next focuses on native macOS integration and packaging. The upstream client/server modules, the
-Java Web Start descriptors and the NSIS/IzPack installers have been removed: none of them reached any
-distributable, and the Windows installer had not been buildable for years.
+Ramus Next ships three installers, each with a bundled Java runtime, so nothing has to be installed
+first:
 
-Download: the latest macOS DMG is available in this repository's GitHub Releases section.
+| Platform | Artifact | Built on |
+|---|---|---|
+| macOS, Apple Silicon | `RamusNext-arm64.dmg` | `macos-latest` |
+| macOS, Intel | `RamusNext-x86_64.dmg` | `macos-15-intel` |
+| Windows 64-bit | `RamusNext-x64.msi` | `windows-latest` |
 
-## Requirements (macOS)
+There are two macOS builds because the bundled runtime is native code and `jpackage` cannot produce a
+universal bundle: Rosetta translates x86_64 to arm64 and not the other way round, so the Apple Silicon
+DMG does not start on an Intel Mac at all.
 
-- macOS with developer tools (preinstalled utilities: `sips`, `iconutil`).
-- Any JDK **21 or newer** (not a JRE). The JDK used for packaging - it supplies `jdeps`, `jlink` and `jpackage`, and becomes the runtime inside the DMG - is resolved through a Gradle toolchain and downloaded if absent.
-- Nothing else: the icon sources under `packaging/macos/AppIcon.appiconset` are plain PNGs converted by `sips`.
+All three are built by [`.github/workflows/build.yml`](.github/workflows/build.yml) and attached to the
+run as artifacts. `jpackage` only ever builds for the operating system it is running on, which is why
+the MSI cannot be produced from a Mac and CI is not optional here.
+
+The upstream client/server modules, the Java Web Start descriptors and the NSIS/IzPack installers have
+been removed: none of them reached any distributable, and the Windows installer had not been buildable
+for years. The MSI replaces it, keeping what it did - a per-machine install, a Start menu entry and the
+`.rsf` file association - and dropping the hand-written installer script.
+
+Download: the latest installers are available in this repository's GitHub Releases section.
+
+## Requirements (packaging)
+
+- Any JDK **21 or newer** (not a JRE). The JDK used for packaging - it supplies `jdeps`, `jlink` and `jpackage`, and becomes the runtime inside the installer - is resolved through a Gradle toolchain and downloaded if absent.
+- For the DMG: macOS with the preinstalled `sips` and `iconutil`. Nothing else - the icon sources under `packaging/macos/AppIcon.appiconset` are plain PNGs.
+- For the MSI: Windows with **WiX Toolset 3.x** on the `PATH`. Version 3 specifically: `jpackage` before JDK 24 invokes `candle.exe` and `light.exe` by name, and WiX 4 and 5 do not provide them. The Windows icon is the committed `packaging/windows/RamusNext.ico`, not generated, because `sips` exists only on macOS.
 
 Tip: This project supports local overrides without changing your shell’s `JAVA_HOME`.
 
@@ -96,12 +114,21 @@ Tip: This project supports local overrides without changing your shell’s `JAVA
 open local-client/build/mac-app/RamusNext.app
 ```
 
-2) Build a standalone DMG (recommended)
+2) Build a standalone DMG (recommended, macOS only)
 
 ```
 ./gradlew :local-client:macDmg
 open dest/macos
 ```
+
+3) Build a Windows MSI (Windows only)
+
+```
+./gradlew :local-client:windowsMsi
+```
+
+Outputs `dest/windows/Ramus Next-2.0.2.msi`: a per-machine install into `Program Files`, with a Start
+menu entry and the `.rsf` association registered.
 
 The DMG contains a standalone app that does not require users to install Java. On disk the bundle is
 `RamusNext.app` and the DMG is `RamusNext-2.0.2.dmg`; the application presents itself as **Ramus Next**
@@ -146,6 +173,11 @@ Only the last one is visible to users. Override any of them with `-P` on the com
   - Full packaging pipeline: generates `.icns` → optional `jlink` runtime → `jpackage` DMG.
   - Outputs to `dest/macos/`.
   - If `jlink` isn’t available, it automatically bundles the full JDK at `packagingJavaHome`.
+
+- `:local-client:windowsMsi`
+  - Full packaging pipeline on Windows: `jlink` runtime → `jpackage` MSI.
+  - Outputs to `dest/windows/`. Fails rather than skips when run anywhere but Windows, because
+    there is no other way to produce the artifact.
 
 - `:local-client:makeIcns`
   - Converts `packaging/macos/AppIcon.appiconset` into a `.icns` using `sips`/`iconutil`.

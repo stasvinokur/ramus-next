@@ -53,6 +53,7 @@ crashlytics-build.properties
 .gradle
 build/
 dest/macos/
+dest/windows/
 gradle-local.properties
 
 # Ignore Gradle GUI config
