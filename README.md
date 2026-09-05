@@ -71,6 +71,4 @@ Ramus Next is free software, released under the [GNU General Public License, ver
 - macOS version modifications by [Vladislav Pavlik](https://github.com/Inv1x).
 - Copyright (C) 2026 Stanislav Vinokur - Ramus Next.
 
-Ramus Next adds to the original copyright notices; it does not replace them. Bundled third-party
-components keep their own licences, listed in
-[`libraries.txt`](gui-framework-core/src/main/resources/com/ramussoft/gui/core/libraries.txt).
+Ramus Next adds to the original copyright notices; it does not replace them.
