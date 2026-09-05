@@ -185,11 +185,19 @@ public abstract class IEngineImpl extends AbstractIEngine implements IEngine {
         attributesCache.clear();
     }
 
+    /**
+     * Called for every sequence of every plugin on every open, so the usual outcome on an
+     * existing model is that the sequence is already there. That is why the failure used to
+     * be swallowed whole - and why a syntax error would have been swallowed with it: H2 2.x
+     * rejects the bare START, and nothing would have said so. IF NOT EXISTS expresses the
+     * expected case, which leaves the catch free to report the unexpected one.
+     */
     private void createSequence(String sequence) {
         try {
-            template.execute("CREATE SEQUENCE " + prefix + sequence
-                    + " START 1;");
+            template.execute("CREATE SEQUENCE IF NOT EXISTS " + prefix + sequence
+                    + " START WITH 1;");
         } catch (Exception e) {
+            System.err.println("Could not create sequence " + prefix + sequence + ": " + e);
         }
     }
 

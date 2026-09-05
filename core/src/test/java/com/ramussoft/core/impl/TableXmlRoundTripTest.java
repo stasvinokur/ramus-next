@@ -13,9 +13,11 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -36,25 +38,28 @@ import com.ramussoft.jdbc.JDBCTemplate;
  * no error at save time to warn anybody.
  *
  * <p>Hence this round trip, which the project would otherwise have no test for at all. It is
- * deliberately literal about the eight type tokens: they are a file format, not an
- * implementation detail, and an older Ramus release has to keep recognising them.
+ * deliberately literal about the type tokens: they are a file format, not an implementation
+ * detail, and an older Ramus release has to keep recognising them.
  */
 public class TableXmlRoundTripTest {
 
     /**
-     * Mirrors the production schema: BIGINT, CHAR(255), BOOLEAN, INTEGER and TIMESTAMP come
-     * from database.sql, TEXT, DOUBLE PRECISION and BYTEA are what
+     * Mirrors the production schema: BIGINT, VARCHAR(255), BOOLEAN, INTEGER and TIMESTAMP
+     * come from database.sql, TEXT, DOUBLE PRECISION and BYTEA are what
      * {@code PersistentField.DATABASE_TYPES} creates for user-defined attributes.
      */
     private static final String DDL = "CREATE TABLE ROUNDTRIP("
             + "ID BIGINT NOT NULL, "
-            + "NAME CHAR(255), "
+            + "NAME VARCHAR(255), "
             + "BODY TEXT, "
             + "AMOUNT INTEGER, "
             + "FLAG BOOLEAN, "
             + "WEIGHT DOUBLE PRECISION, "
             + "MOMENT TIMESTAMP, "
             + "PAYLOAD BYTEA)";
+
+    private static final List<String> TOKENS = Arrays.asList("BIGINT", "CLOB", "CLOB",
+            "INTEGER", "BOOLEAN", "DOUBLE", "TIMESTAMP", "VARBINARY");
 
     /**
      * The format has minute resolution, so the fixture is minute-aligned; anything finer
@@ -64,9 +69,14 @@ public class TableXmlRoundTripTest {
 
     private static final byte[] PAYLOAD = {-128, -1, 0, 1, 127};
 
+    private static final String TEXT =
+            "Body <text> with an ampersand & a newline\nand a tab\t.";
+
     private Connection source;
 
-    private Connection target;
+    private int databases;
+
+    private final List<Connection> open = new ArrayList<Connection>();
 
     private static Timestamp moment() {
         Calendar calendar = Calendar.getInstance();
@@ -75,26 +85,27 @@ public class TableXmlRoundTripTest {
         return new Timestamp(calendar.getTimeInMillis());
     }
 
-    private Connection open(String name) throws Exception {
-        Connection connection = DriverManager.getConnection("jdbc:h2:mem:" + name, "sa", "");
+    private Connection database() throws Exception {
+        Connection connection = DriverManager.getConnection(
+                "jdbc:h2:mem:roundtrip" + (databases++), "sa", "");
         connection.setAutoCommit(false);
         Statement statement = connection.createStatement();
         statement.execute(DDL);
         statement.close();
         connection.commit();
+        open.add(connection);
         return connection;
     }
 
     @Before
     public void setUp() throws Exception {
-        source = open("roundtrip_source");
-        target = open("roundtrip_target");
+        source = database();
 
         PreparedStatement ps = source
                 .prepareStatement("INSERT INTO ROUNDTRIP VALUES(?, ?, ?, ?, ?, ?, ?, ?)");
         ps.setLong(1, 42L);
         ps.setString(2, "Процесс A0");
-        ps.setString(3, "Body <text> with an ampersand & a newline\nand a tab\t.");
+        ps.setString(3, TEXT);
         ps.setInt(4, -17);
         ps.setBoolean(5, true);
         ps.setDouble(6, 3.5d);
@@ -115,8 +126,8 @@ public class TableXmlRoundTripTest {
 
     @After
     public void tearDown() throws Exception {
-        source.close();
-        target.close();
+        for (Connection connection : open)
+            connection.close();
     }
 
     private byte[] store(Connection connection) throws Exception {
@@ -125,9 +136,11 @@ public class TableXmlRoundTripTest {
         return out.toByteArray();
     }
 
-    private void load(Connection connection, byte[] xml) throws Exception {
+    private Connection load(byte[] xml) throws Exception {
+        Connection connection = database();
         new XMLToTable(new JDBCTemplate(connection), new ByteArrayInputStream(xml),
                 "ROUNDTRIP", "").load();
+        return connection;
     }
 
     private static List<String> types(byte[] xml) {
@@ -139,28 +152,14 @@ public class TableXmlRoundTripTest {
         return types;
     }
 
-    /**
-     * The tokens are asserted by value, not merely round-tripped, because the point of them
-     * is to be understood by a build that is not this one.
-     */
-    @Test
-    public void writesTheTypeTokensAnOlderReleaseUnderstands() throws Exception {
-        assertEquals(java.util.Arrays.asList("BIGINT", "CHAR", "CLOB", "INTEGER",
-                "BOOLEAN", "DOUBLE", "TIMESTAMP", "VARBINARY"), types(store(source)));
-    }
-
-    @Test
-    public void survivesTheRoundTrip() throws Exception {
-        load(target, store(source));
-
-        Statement statement = target.createStatement();
+    private void assertContentsSurvived(Connection connection) throws Exception {
+        Statement statement = connection.createStatement();
         ResultSet rs = statement.executeQuery("SELECT * FROM ROUNDTRIP ORDER BY ID");
 
         assertTrue(rs.next());
         assertEquals(42L, rs.getLong("ID"));
         assertEquals("Процесс A0", rs.getString("NAME"));
-        assertEquals("Body <text> with an ampersand & a newline\nand a tab\t.",
-                rs.getString("BODY"));
+        assertEquals(TEXT, rs.getString("BODY"));
         assertEquals(-17, rs.getInt("AMOUNT"));
         assertEquals(true, rs.getBoolean("FLAG"));
         assertEquals(3.5d, rs.getDouble("WEIGHT"), 0d);
@@ -179,7 +178,49 @@ public class TableXmlRoundTripTest {
     }
 
     /**
-     * The regression this whole commit exists for. Java 9 moved the JRE to CLDR locale data,
+     * The tokens are asserted by value, not merely round-tripped, because the whole point of
+     * them is to be understood by a build that is not this one.
+     */
+    @Test
+    public void writesTheTypeTokensAnOlderReleaseUnderstands() throws Exception {
+        assertEquals(TOKENS, types(store(source)));
+    }
+
+    @Test
+    public void survivesTheRoundTrip() throws Exception {
+        assertContentsSurvived(load(store(source)));
+    }
+
+    /**
+     * The other half of the same promise: the names in files that already exist keep working.
+     * CHAR is what every model saved before this change carries for a name column, and the
+     * four long spellings are what H2 2.x reports for the same types.
+     */
+    @Test
+    public void readsTheNamesOlderFilesAndNewerDriversUse() throws Exception {
+        String[][] synonyms = {
+                {"CLOB", "CHAR"},
+                {"CLOB", "CHARACTER"},
+                {"CLOB", "CHARACTER VARYING"},
+                {"CLOB", "CHARACTER LARGE OBJECT"},
+                {"VARBINARY", "BINARY VARYING"},
+                {"VARBINARY", "BINARY LARGE OBJECT"},
+                {"DOUBLE", "DOUBLE PRECISION"},
+                {"INTEGER", "INT"},
+                {"BOOLEAN", "BOOL"},
+                {"BIGINT", "LONG"},
+        };
+        for (String[] synonym : synonyms) {
+            byte[] xml = new String(store(source), StandardCharsets.UTF_8)
+                    .replace("type=\"" + synonym[0] + "\"", "type=\"" + synonym[1] + "\"")
+                    .getBytes(StandardCharsets.UTF_8);
+            assertTrue(synonym[1], types(xml).contains(synonym[1]));
+            assertContentsSurvived(load(xml));
+        }
+    }
+
+    /**
+     * The regression this whole change exists for. Java 9 moved the JRE to CLDR locale data,
      * which puts a comma into the English SHORT date-time pattern, so a modern build wrote
      * "9/7/24, 9:21 AM" and could no longer parse the "9/7/24 9:21 AM" in every file saved
      * before it. Nothing was reported: the parse failure was caught, printed and the column
@@ -202,15 +243,15 @@ public class TableXmlRoundTripTest {
         try {
             XMLToTable.parseDate("2024-09-07T09:21");
             fail("expected the unparseable date to be reported");
-        } catch (java.sql.SQLException e) {
+        } catch (SQLException e) {
             assertTrue(e.getMessage(), e.getMessage().contains("2024-09-07T09:21"));
         }
     }
 
     /**
      * An unknown type used to print one line to System.err and store a null converter, so the
-     * only symptom was a NullPointerException from somewhere else entirely. It now names the
-     * type and the table.
+     * only symptom was a NullPointerException raised somewhere else entirely. It now names
+     * the type and the table.
      */
     @Test
     public void namesATypeItDoesNotKnow() throws Exception {
@@ -218,7 +259,7 @@ public class TableXmlRoundTripTest {
                 .replace("type=\"CLOB\"", "type=\"GEOMETRY\"")
                 .getBytes(StandardCharsets.UTF_8);
         try {
-            load(target, xml);
+            load(xml);
             fail("expected the unknown type to be reported");
         } catch (RuntimeException e) {
             String message = String.valueOf(e.getCause() == null ? e : e.getCause());
