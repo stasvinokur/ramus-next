@@ -39,6 +39,10 @@ dependencies {
     implementation 'com.h2database:h2:2.3.232'
     testImplementation 'junit:junit:4.13.2'
 }
+tasks.named('test') {
+    useJUnit()
+}
+
 
 tasks.register('runLocal', JavaExec) {
     group = 'application'

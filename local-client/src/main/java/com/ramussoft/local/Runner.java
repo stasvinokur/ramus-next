@@ -1,5 +1,7 @@
 package com.ramussoft.local;
 
+import java.awt.Frame;
+import java.awt.GraphicsEnvironment;
 import java.awt.Label;
 import java.awt.Window;
 import java.beans.PropertyChangeEvent;
@@ -652,8 +654,34 @@ public class Runner implements Commands {
 
     public boolean recoverySession(final String sessionPath,
                                    final File sourceFile) {
+        final Window rFrame = showRecoveryProgress(sourceFile);
+        try {
+            return recoverSession(sessionPath, sourceFile);
+        } finally {
+            closeRecoveryProgress(rFrame);
+        }
+    }
 
-        Window rFrame = new Window(null);
+    /**
+     * The "restoring session" indicator: a bare AWT window, centred on the screen.
+     *
+     * <p>It used to be opened at the top of the recovery and closed - sometimes - far below.
+     * Three of the four ways out left it on screen: no journals, nothing to restore, and any
+     * exception. The last is not hypothetical. Opening the database of a half-written session
+     * throws, and a half-written session is the normal outcome of the crash this feature
+     * exists to recover from.
+     *
+     * <p>What that cost was not obvious from here. The window is about 292x16 at the centre
+     * of the screen, and the project wizard that opens straight afterwards is centred too, so
+     * the leftover sat precisely over the wizard's three text fields and stopped short of its
+     * buttons. A click on those fields went to the stranded window and never arrived, while
+     * Tab and typing - which go to the focus owner, not to a screen position - kept working.
+     * It let go when the user switched applications, because that re-orders the windows.
+     */
+    private Window showRecoveryProgress(final File sourceFile) {
+        if (GraphicsEnvironment.isHeadless())
+            return null;
+        Window rFrame = new Window((Frame) null);
 
         String recovering = GlobalResourcesManager.getString("File.Recovering");
 
@@ -664,6 +692,22 @@ public class Runner implements Commands {
         rFrame.pack();
         rFrame.setLocationRelativeTo(null);
         rFrame.setVisible(true);
+        return rFrame;
+    }
+
+    /**
+     * Disposed, not hidden. {@code Window.addNotify} adds a realized window to a static list
+     * that only {@code dispose} takes it out of, so a merely hidden one keeps its native peer
+     * and goes on taking part in the modal-blocking calculation of every dialog opened for the
+     * rest of the session.
+     */
+    private void closeRecoveryProgress(final Window rFrame) {
+        if (rFrame != null)
+            rFrame.dispose();
+    }
+
+    private boolean recoverSession(final String sessionPath,
+                                   final File sourceFile) {
 
         final String s = sessionPath + File.separator + "source.rms";
 
@@ -718,7 +762,6 @@ public class Runner implements Commands {
                 }
                 if ((journal.getPointer() == 0l)
                         || (command instanceof StopUndoPointCommand)) {
-                    rFrame.setVisible(false);
                     continue;
                 } else
                     exist = true;
@@ -748,7 +791,6 @@ public class Runner implements Commands {
         engine.setActiveBranch(-1l);
 
         final AccessRules accessor = database.getAccessRules(null);
-        rFrame.setVisible(false);
 
         Runnable runnable = new Runnable() {
             @Override
