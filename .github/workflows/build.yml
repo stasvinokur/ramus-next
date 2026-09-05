@@ -5,11 +5,14 @@ name: Build
 # an Intel runner. That is the whole reason this file exists: the installers are not a
 # convenience here, they are the only way to produce two of the three artifacts at all.
 
+# Only a tag builds. Pushing to main used to build too, which meant every tagged commit was
+# packaged twice - once for the branch and once for the tag - for three jpackage jobs each time,
+# and the branch run produced installers nobody could download. Ordinary pushes are covered by
+# building locally; workflow_dispatch is here for the times that is not enough, and it does not
+# publish, because the release job is gated on the ref being a tag.
 on:
   push:
-    branches: [main]
     tags: ['v*']
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -255,14 +258,23 @@ jobs:
       # only reason to check out here - nothing is built.
       - uses: actions/checkout@v4
 
+      # pattern: without it this also downloads the test-results artifact, whose entries are
+      # <module>/build/test-results/..., which is what the merged directory was full of.
       - uses: actions/download-artifact@v4
         with:
+          pattern: RamusNext-*
           path: artifacts
           merge-multiple: true
 
       - name: Check that all three installers are here
         run: |
           set -euo pipefail
+          # The upload lists two paths, dest/macos/*.dmg and dest/windows/*.msi, so the common
+          # ancestor it strips is dest/ and the files arrive under artifacts/macos/ and
+          # artifacts/windows/ rather than flat. Flatten instead of hardcoding those two
+          # directories, so the check keeps working if the packaging layout moves again.
+          find artifacts -type f \( -name '*.dmg' -o -name '*.msi' \) \
+              -exec mv {} artifacts/ \;
           ls -la artifacts
           for expected in RamusNext-arm64.dmg RamusNext-x86_64.dmg RamusNext-x64.msi; do
             # package sets fail-fast: false so that one broken runner does not cost the other
