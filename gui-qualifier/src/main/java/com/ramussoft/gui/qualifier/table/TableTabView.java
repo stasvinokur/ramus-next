@@ -309,9 +309,11 @@ public abstract class TableTabView extends TableView {
                         });
 
                         ((Journaled) engine).rollbackUserTransaction();
+                    } finally {
+                        // See QualifierView: a skipped hideAnimation leaves the main frame
+                        // disabled, which reads as a mouse that has stopped working.
+                        framework.hideAnimation();
                     }
-
-                    framework.hideAnimation();
                 }
             });
             thread.start();

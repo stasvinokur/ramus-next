@@ -334,9 +334,13 @@ public class StandardFilePlugin extends AbstractViewPlugin {
                         impl.close();
                     } catch (Exception e) {
                         e.printStackTrace();
-                        framework.hideAnimation();
                         JOptionPane.showMessageDialog(framework.getMainFrame(),
                                 e.getLocalizedMessage());
+                    } finally {
+                        // Was in the catch, which left an Error - or any throw the catch
+                        // itself made - with the main frame still disabled. Hiding twice is
+                        // harmless; not hiding once is a window that ignores the mouse.
+                        framework.hideAnimation();
                     }
 
                 }

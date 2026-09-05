@@ -524,8 +524,13 @@ public class QualifierView extends TableView implements UniqueView {
                         });
 
                         ((Journaled) engine).rollbackUserTransaction();
+                    } finally {
+                        // showAnimation disables the main frame, so a hideAnimation that is
+                        // skipped leaves the window dead to the mouse and alive to the
+                        // keyboard - and rollbackUserTransaction, inside the catch above, can
+                        // throw.
+                        framework.hideAnimation();
                     }
-                    framework.hideAnimation();
                 }
             });
             thread.start();
