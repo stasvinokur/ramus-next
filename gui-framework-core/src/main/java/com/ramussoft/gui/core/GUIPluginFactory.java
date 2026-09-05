@@ -1,6 +1,7 @@
 package com.ramussoft.gui.core;
 
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -34,6 +35,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.JToolBar;
+import javax.swing.UIManager;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 
@@ -58,6 +60,8 @@ import bibliothek.gui.dock.common.intern.DefaultCDockable;
 import bibliothek.gui.dock.common.intern.action.CDecorateableAction;
 import bibliothek.gui.dock.common.theme.ThemeMap;
 import bibliothek.gui.dock.title.DockTitle.Orientation;
+import bibliothek.gui.dock.util.color.ColorManager;
+import bibliothek.gui.dock.util.Priority;
 import bibliothek.util.xml.XElement;
 
 import com.ramussoft.common.AccessRules;
@@ -511,6 +515,7 @@ public class GUIPluginFactory extends AbstractGUIPluginFactory {
         // smooth is the library's own default: the blue gradient title bars. Flat is the
         // one that does not look like 2012.
         control.setTheme(ThemeMap.KEY_FLAT_THEME);
+        toneDownDockableTitles();
         plugableFrame.addWindowListener(new WindowAdapter() {
 
             @Override
@@ -577,11 +582,42 @@ public class GUIPluginFactory extends AbstractGUIPluginFactory {
     }
 
     @SuppressWarnings("deprecation")
+    /**
+     * Makes the panel title bars look like part of the window.
+     *
+     * <p>The flat theme derives them from DockingFrames' own dock.* colours, which
+     * DefaultLookAndFeelColors in turn reads out of standard UIDefaults keys - and
+     * title.active.left comes from MenuItem.selectionBackground, which under this theme is a
+     * saturated blue. So switching away from the old blue gradient produced a solid blue
+     * title bar instead: different, but no quieter.
+     *
+     * <p>These are set on DockingFrames' own ColorManager rather than through UIManager,
+     * because the keys they are derived from belong to menus - recolouring those to fix a
+     * title bar would repaint every menu in the application. Values come from UIDefaults, so
+     * a dark theme would move them without any change here.
+     */
+    private void toneDownDockableTitles() {
+        Color surface = UIManager.getColor("Panel.background");
+        // What this theme already uses for a focused tab: a barely-there tint rather than a
+        // fill. The focused panel should be identifiable, not loud.
+        Color focused = UIManager.getColor("TabbedPane.focusColor");
+        Color text = UIManager.getColor("Panel.foreground");
+        if (surface == null || focused == null || text == null)
+            return;
+
+        ColorManager colors = control.getController().getColors();
+        colors.put(Priority.CLIENT, "title.active.left", focused);
+        colors.put(Priority.CLIENT, "title.active.right", focused);
+        colors.put(Priority.CLIENT, "title.active.text", text);
+        colors.put(Priority.CLIENT, "title.inactive.left", surface);
+        colors.put(Priority.CLIENT, "title.inactive.right", surface);
+        colors.put(Priority.CLIENT, "title.inactive.text", text);
+    }
+
     private void initContent() {
 
         control = new CControl(plugableFrame, false);
 
-        // control.setTheme(control.getThemes().getFactory(2).create());
 
         control.addControlListener(new CControlListener() {
 
@@ -673,7 +709,6 @@ public class GUIPluginFactory extends AbstractGUIPluginFactory {
 
         });
 
-        // control.setTheme(ThemeMap.KEY_ECLIPSE_THEME);
         contentArea = control.getContentArea();
         plugableFrame.add(contentArea, BorderLayout.CENTER);
 
