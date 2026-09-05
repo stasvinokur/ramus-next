@@ -3,12 +3,11 @@ package com.ramussoft.gui.core;
 import java.awt.event.ActionEvent;
 
 import java.awt.event.KeyEvent;
-import java.net.URL;
 import java.util.List;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
-import javax.swing.ImageIcon;
+import javax.swing.Icon;
 import javax.swing.JOptionPane;
 import javax.swing.JToggleButton;
 import javax.swing.JToolBar;
@@ -21,6 +20,7 @@ import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.common.event.ActionListener;
 import com.ramussoft.gui.common.prefrence.Options;
+import com.ramussoft.gui.common.Icons;
 
 public class ShowWorkspacePlugin extends AbstractViewPlugin {
 
@@ -99,10 +99,14 @@ public class ShowWorkspacePlugin extends AbstractViewPlugin {
                 action.putValue(Action.ACCELERATOR_KEY, KeyStroke.getKeyStroke(
                         KeyEvent.VK_1 + i, menuMask | KeyEvent.SHIFT_MASK));
 
-                URL resource = getClass().getResource(
-                        "/com/ramussoft/gui/" + workspace + ".png");
-                if (resource != null)
-                    action.putValue(Action.SMALL_ICON, new ImageIcon(resource));
+                // Through the loader like everything else. This built its own ImageIcon,
+                // which is why these six - the most prominent icons in the window, in the
+                // top right corner - were invisible to the inventory of what the
+                // application loads, and would have been the only bitmaps left in a
+                // toolbar of vectors.
+                Icon icon = Icons.get("/com/ramussoft/gui/" + workspace + ".png");
+                if (icon != null)
+                    action.putValue(Action.SMALL_ICON, icon);
 
                 action.putValue(Action.ACTION_COMMAND_KEY, factory
                         .getPluginForWorkspace(workspace).getString(workspace));
