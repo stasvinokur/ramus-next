@@ -1,9 +1,5 @@
 plugins {
-    id 'java-library'
-}
-
-repositories {
-    mavenCentral()
+    id 'ramus.java-conventions'
 }
 
 dependencies {

@@ -1,10 +1,5 @@
-group 'com.stasvinokur.ramusnext'
-version '1.0-SNAPSHOT'
-
-apply plugin: 'java'
-
-repositories {
-    mavenCentral()
+plugins {
+    id 'ramus.java-conventions'
 }
 
 dependencies {

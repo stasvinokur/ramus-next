@@ -1,3 +1,16 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+plugins {
+    // Toolchain auto-detection on macOS only scans /Library/Java/JavaVirtualMachines,
+    // so a Homebrew or SDKMAN JDK is invisible to it and the build would fail with
+    // "No matching toolchains found". This resolver downloads the required JDK instead.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'ramus-next'
 include ':common'
 include ':core'

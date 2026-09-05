@@ -1,11 +1,8 @@
 plugins {
-    id 'java'
+    id 'ramus.java-conventions'
     id 'application'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
 }
-
-group 'com.stasvinokur.ramusnext'
-version '2.0.2'
 
 // Product naming, single source of truth for the whole build.
 // appName is space-free and names everything that lands on disk: the .app bundle, the DMG,
@@ -14,10 +11,6 @@ version '2.0.2'
 // under 16 characters, which is the only thing jpackage checks about --mac-package-name.
 def appName = 'RamusNext'
 def appDisplayName = 'Ramus Next'
-
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     implementation project(':common')

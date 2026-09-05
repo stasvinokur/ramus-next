@@ -1,0 +1,38 @@
+// Shared Java configuration for every Ramus Next module.
+//
+// This replaces the root `allprojects { }` block: cross-project configuration from
+// the root is the pattern Gradle's Isolated Projects mode forbids, and it was also
+// duplicated by hand in 21 of the modules.
+
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    // WHICH JDK RUNS javac. Gradle locates or downloads it; this is deliberately
+    // independent of whatever JVM the daemon happens to be running on.
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(
+                (providers.gradleProperty('javaToolchainVersion').getOrElse('21')) as Integer)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+
+    // WHAT THAT javac EMITS AND IS ALLOWED TO SEE. --release pins the class file
+    // version *and* restricts the visible API to that release's signatures from
+    // ct.sym, so the toolchain above can move to any newer JDK without changing a
+    // byte of output and without letting a post-17 API slip in by accident.
+    //
+    // Do not raise this casually. Under release 17 the compiler still resolves
+    // Thread.stop(), which report-core calls and which is absent from the JDK 23+
+    // API - that is why the build works on a modern JDK at all today. It is also
+    // why new Locale(...) and new URL(...) stop warning: they were deprecated after
+    // 17, and there is no clean 17-era replacement for either.
+    options.release = (providers.gradleProperty('javaRelease').getOrElse('17')) as Integer
+}

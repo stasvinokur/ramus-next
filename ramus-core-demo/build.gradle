@@ -1,7 +1,6 @@
-group 'com.stasvinokur.ramusnext'
-version '1.0-SNAPSHOT'
-
-apply plugin: 'java'
+plugins {
+    id 'ramus.java-conventions'
+}
 
 dependencies {
     implementation project(':core')
