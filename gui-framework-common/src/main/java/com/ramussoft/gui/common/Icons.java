@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 
+import com.formdev.flatlaf.extras.FlatSVGIcon;
+
 /**
  * The one place the application loads an interface icon.
  *
@@ -20,8 +22,9 @@ import javax.swing.ImageIcon;
  * the compositor. Fixing that means loading them differently, and loading them differently
  * means loading them in one place.
  *
- * <p>The paths are the same classpath literals as before, so this is a change of plumbing
- * and not of behaviour.
+ * <p>The paths are the same classpath literals as before. An icon is served as a vector when
+ * a file with the same path and an {@code .svg} extension exists, and as the original bitmap
+ * otherwise - see {@link #load}.
  */
 public final class Icons {
 
@@ -97,8 +100,28 @@ public final class Icons {
         return loaded;
     }
 
+    /**
+     * Prefers a vector icon at the same path with an {@code .svg} extension, and falls back
+     * to the bitmap the path actually names.
+     *
+     * <p>This is where the icon replacement lives, and it is deliberately not a mapping table
+     * in code. Call sites keep passing the paths they always passed; whether an icon has been
+     * redrawn is decided by whether a .svg sits beside it. The icons that cannot be replaced -
+     * the IDEF0 and DFD notation, which no general icon set contains - simply have no .svg,
+     * so they keep loading exactly as before without a single branch mentioning them.
+     */
     private static Icon load(final String path) {
+        URL svg = Icons.class.getResource(vectorPath(path));
+        if (svg != null)
+            return new FlatSVGIcon(svg);
         return raster(path);
+    }
+
+    static String vectorPath(final String path) {
+        int dot = path.lastIndexOf('.');
+        return (dot > path.lastIndexOf('/'))
+                ? path.substring(0, dot) + ".svg"
+                : path + ".svg";
     }
 
     private static ImageIcon raster(final String path) {

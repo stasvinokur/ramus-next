@@ -123,6 +123,40 @@ public class IconsTest {
         assertSame(viaImage, Icons.get("/com/ramussoft/gui/table/add.png"));
     }
 
+    /**
+     * The replacement mechanism: an icon is served as a vector when a file with the same path
+     * and an .svg extension exists. Both files are present in the test resources, so this
+     * also pins the precedence rather than only the happy path.
+     */
+    @Test
+    public void prefersTheVectorBesideTheBitmap() {
+        Icon icon = Icons.get("/com/ramussoft/gui/common/probe-icon.png");
+        assertNotNull(icon);
+        assertEquals("com.formdev.flatlaf.extras.FlatSVGIcon",
+                icon.getClass().getName());
+        assertEquals(16, icon.getIconWidth());
+        assertEquals(16, icon.getIconHeight());
+    }
+
+    /**
+     * And the other half, which is what leaves the eight unreplaceable icons alone: no .svg
+     * beside it means the bitmap is served, with no branch in the code naming those icons.
+     */
+    @Test
+    public void fallsBackToTheBitmapWhenThereIsNoVector() {
+        Icon icon = Icons.get("/com/ramussoft/gui/file-save.png");
+        assertNotNull(icon);
+        assertEquals("javax.swing.ImageIcon", icon.getClass().getName());
+    }
+
+    @Test
+    public void namesTheVectorBesideAnyPath() {
+        assertEquals("/a/b/c.svg", Icons.vectorPath("/a/b/c.png"));
+        assertEquals("/a/b/c.svg", Icons.vectorPath("/a/b/c.gif"));
+        // A path with a dot in a directory but not in the file name must not be truncated.
+        assertEquals("/a.b/c.svg", Icons.vectorPath("/a.b/c"));
+    }
+
     @Test
     public void reportsAMissingIconAsNullRatherThanThrowing() {
         assertEquals(null, Icons.get("/com/ramussoft/gui/there-is-no-such-icon.png"));

@@ -15,6 +15,10 @@ dependencies {
     // without this picks an Aqua or Metal addon and draws those two widgets in the old
     // colours inside a FlatLaf window. 40 KB.
     api 'com.formdev:flatlaf-swingx:3.7.2'
+    // Renders the interface icons, which are SVG rather than 16-pixel bitmaps. Pulls
+    // com.github.weisj:jsvg and nothing else - every other dependency in jsvg's pom is
+    // marked optional. Together about 880 KB.
+    api 'com.formdev:flatlaf-extras:3.7.2'
 
     testImplementation 'junit:junit:4.13.2'
 }
