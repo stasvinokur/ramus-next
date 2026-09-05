@@ -40,10 +40,12 @@ dependencies {
     testImplementation group: 'junit', name: 'junit', version: '4.11'
 }
 
-task runLocal(type: JavaExec) {
-    classpath sourceSets.main.runtimeClasspath
-    mainClass = "com.ramussoft.local.Main"
-    args[]
+tasks.register('runLocal', JavaExec) {
+    group = 'application'
+    description = 'Runs Ramus Next from the compiled classes, without packaging.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.ramussoft.local.Main'
+    javaLauncher = javaToolchains.launcherFor(java.toolchain)
 }
 
 application {
@@ -65,145 +67,227 @@ shadowJar {
 
 // --- macOS packaging (ICNS + DMG via jpackage) ---
 
-def macWorkDir = file("${buildDir}/macos")
-def iconsetDir = file("${macWorkDir}/AppIcon.iconset")
-def icnsFile = file("${macWorkDir}/${appName}.icns")
-def jpkgInputDir = file("${macWorkDir}/jpackage-input")
-def dmgDestDir = file("${rootProject.projectDir}/dest/macos")
-def runtimeImageDir = file("${macWorkDir}/runtime")
+// Project.exec and Project.copy are gone in Gradle 9. Their replacement is these two
+// services, injected into an object the task actions capture. Groovy build scripts cannot
+// declare injected constructors, so this interface exists purely to hold the getters.
+interface PackagingServices {
+    @javax.inject.Inject ExecOperations getExec()
+    @javax.inject.Inject FileSystemOperations getFs()
+}
+
+def macWorkDir      = layout.buildDirectory.dir('macos')
+def iconsetDir      = macWorkDir.map { it.dir('AppIcon.iconset') }
+def icnsFile        = macWorkDir.map { it.file("${appName}.icns") }
+def jpkgInputDir    = macWorkDir.map { it.dir('jpackage-input') }
+def runtimeImageDir = macWorkDir.map { it.dir('runtime') }
+def iconSourceDir   = rootProject.layout.projectDirectory.dir('packaging/macos/AppIcon.appiconset')
+def dmgDestDir      = rootProject.layout.projectDirectory.dir('dest/macos')
+
+// A Provider survives configuration-cache serialization; reading System.getProperty inside a
+// task action would be an untracked build input. Replaces the four uses of Gradle's internal
+// org.gradle.internal.os.OperatingSystem, which carries no compatibility guarantee.
+def isMacOs = providers.systemProperty('os.name')
+        .map { it.toLowerCase(Locale.ROOT).startsWith('mac') }
+        .orElse(false)
+
+// The JDK that supplies jdeps/jlink/jpackage AND becomes the runtime inside the installer.
+// This is a different question from the compile toolchain and must not share its value by
+// accident. The old fallback chain ended at System.getProperty('java.home') - the daemon's
+// JVM - which under a toolchain is emphatically the wrong JDK to bundle.
+def packagingJdkVersion = (findProperty('packagingJdkVersion') ?: '21').toString() as Integer
+def packagingJavaHomeOverride = findProperty('packagingJavaHome')?.toString()
+def packagingHome = packagingJavaHomeOverride
+        ? providers.provider { packagingJavaHomeOverride }
+        : javaToolchains.launcherFor { it.languageVersion = JavaLanguageVersion.of(packagingJdkVersion) }
+                        .map { it.metadata.installationPath.asFile.absolutePath }
+
+// Gradle property lookups are hoisted to configuration time on purpose. What the
+// configuration cache forbids is touching Project from a task ACTION; reading properties
+// here is fine, and findProperty (rather than providers.gradleProperty) is required because
+// the root build loads gradle-local.properties into project.ext, which providers never see.
+def jdepsOverride = findProperty('packagingJdepsBin')?.toString()
+def jlinkOverride = findProperty('packagingJlinkBin')?.toString()
+def jmodsOverride = findProperty('packagingJmodsPath')?.toString()
+def wantJlink     = findProperty('packagingUseJlink')?.toString()?.toBoolean() != false
+
+def rawVersion = (project.version ?: '1.0.0').toString().replaceAll(/[^0-9.]/, '')
+// Windows MSI needs exactly MAJOR.MINOR.PATCH and macOS needs a first component >= 1, so
+// normalise to the intersection rather than to what each platform will individually accept.
+def appVersion = (rawVersion ==~ /\d+(\.\d+){0,2}/) ? rawVersion : '1.0.0'
+while (appVersion.count('.') < 2) appVersion += '.0'
+
+def iconMapping = [
+    'icon_16x16.png'      : [file: '16-mac.png',   size: 16],
+    'icon_16x16@2x.png'   : [file: '32-mac.png',   size: 32],
+    'icon_32x32.png'      : [file: '32-mac.png',   size: 32],
+    'icon_32x32@2x.png'   : [file: '64-mac.png',   size: 64],
+    'icon_128x128.png'    : [file: '128-mac.png',  size: 128],
+    'icon_128x128@2x.png' : [file: '256-mac.png',  size: 256],
+    'icon_256x256.png'    : [file: '256-mac.png',  size: 256],
+    'icon_256x256@2x.png' : [file: '512-mac.png',  size: 512],
+    'icon_512x512.png'    : [file: '512-mac.png',  size: 512],
+    'icon_512x512@2x.png' : [file: '1024-mac.png', size: 1024],
+]
 
 tasks.register('prepareMacIcons') {
+    group = 'distribution'
+    description = 'Rescales packaging/macos/AppIcon.appiconset into an .iconset using sips.'
+    def services = objects.newInstance(PackagingServices)
+    def onMac = isMacOs
+    def srcDir = iconSourceDir
+    def outDir = iconsetDir
+    def mapping = iconMapping
+
+    inputs.dir(srcDir).withPropertyName('iconSources')
+    inputs.property('mapping', mapping.toString())
+    outputs.dir(outDir).withPropertyName('iconset')
+
     doLast {
-        if (!org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
+        if (!onMac.get()) {
             throw new GradleException('prepareMacIcons must be executed on macOS (uses sips)')
         }
-        iconsetDir.mkdirs()
-        def srcBase = file("${rootProject.projectDir}/packaging/macos/AppIcon.appiconset")
-        if (!srcBase.exists()) {
-            throw new GradleException("Missing dest/Assets.xcassets/AppIcon.appiconset with mac icon images")
-        }
-        def mapping = [
-            'icon_16x16.png'      : [file:'16-mac.png',   size:16],
-            'icon_16x16@2x.png'   : [file:'32-mac.png',   size:32],
-            'icon_32x32.png'      : [file:'32-mac.png',   size:32],
-            'icon_32x32@2x.png'   : [file:'64-mac.png',   size:64],
-            'icon_128x128.png'    : [file:'128-mac.png',  size:128],
-            'icon_128x128@2x.png' : [file:'256-mac.png',  size:256],
-            'icon_256x256.png'    : [file:'256-mac.png',  size:256],
-            'icon_256x256@2x.png' : [file:'512-mac.png',  size:512],
-            'icon_512x512.png'    : [file:'512-mac.png',  size:512],
-            'icon_512x512@2x.png' : [file:'1024-mac.png', size:1024],
-        ]
+        def srcBase = srcDir.asFile
+        def target = outDir.get().asFile
+        target.mkdirs()
         mapping.each { targetName, meta ->
             def src = new File(srcBase, meta.file)
             if (!src.exists()) throw new GradleException("Missing icon asset: ${src}")
-            def out = new File(iconsetDir, targetName)
-            // Convert to true PNG and ensure correct dimensions using sips
-            // sips -s format png -z <h> <w> <in> --out <out>
-            exec {
-                commandLine 'sips', '-s', 'format', 'png', '-z', meta.size as String, meta.size as String, src.absolutePath, '--out', out.absolutePath
+            def out = new File(target, targetName)
+            services.exec.exec {
+                commandLine 'sips', '-s', 'format', 'png',
+                        '-z', meta.size as String, meta.size as String,
+                        src.absolutePath, '--out', out.absolutePath
             }
         }
-        println "Prepared iconset at: ${iconsetDir}"
+        logger.lifecycle "Prepared iconset at: ${target}"
     }
 }
 
 tasks.register('makeIcns') {
+    group = 'distribution'
+    description = 'Converts the generated .iconset into an .icns using iconutil.'
     dependsOn 'prepareMacIcons'
+    def services = objects.newInstance(PackagingServices)
+    def onMac = isMacOs
+    def inDir = iconsetDir
+    def outFile = icnsFile
+
+    inputs.dir(inDir).withPropertyName('iconset')
+    outputs.file(outFile).withPropertyName('icns')
+
     doLast {
-        if (!org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-            throw new GradleException('makeIcns requires macOS (iconutil)')
+        if (!onMac.get()) throw new GradleException('makeIcns requires macOS (iconutil)')
+        def out = outFile.get().asFile
+        out.parentFile.mkdirs()
+        services.exec.exec {
+            commandLine 'iconutil', '-c', 'icns', inDir.get().asFile.absolutePath, '-o', out.absolutePath
         }
-        exec {
-            commandLine 'iconutil', '-c', 'icns', iconsetDir.absolutePath, '-o', icnsFile.absolutePath
-        }
-        println "Built ICNS: ${icnsFile}"
+        logger.lifecycle "Built ICNS: ${out}"
     }
 }
 
-tasks.register('prepareJpackageInput') {
-    dependsOn shadowJar
-    doLast {
-        jpkgInputDir.mkdirs()
-        copy {
-            from shadowJar.archiveFile.get().asFile
-            into jpkgInputDir
-            rename { 'ramus.jar' }
-        }
-        println "Prepared jpackage input at: ${jpkgInputDir}"
-    }
+// Sync rather than Copy: jpackage --input copies EVERYTHING in this directory into the
+// bundle, so a stale artifact left by a rename would silently ship. Sync also removes the
+// Project.copy call and gets the task dependency from the shadowJar provider rather than
+// from a configuration-time reference to the task object.
+tasks.register('prepareJpackageInput', Sync) {
+    group = 'distribution'
+    description = 'Stages the fat jar for jpackage.'
+    from(tasks.named('shadowJar')) { rename { 'ramus.jar' } }
+    into jpkgInputDir
 }
 
 // Build a minimized runtime image with jlink using detected modules
 tasks.register('jlinkImage') {
+    group = 'distribution'
+    description = 'Builds a minimised runtime image with jlink from the modules jdeps detects.'
     dependsOn 'prepareJpackageInput'
+
+    def services = objects.newInstance(PackagingServices)
+    def onMac = isMacOs
+    def appJar = jpkgInputDir.map { it.file('ramus.jar') }
+    def imageDir = runtimeImageDir
+    def javaHomeP = packagingHome
+    def multiRelease = packagingJdkVersion.toString()
+    def jdepsBinOverride = jdepsOverride
+    def jlinkBinOverride = jlinkOverride
+    def jmodsPathOverride = jmodsOverride
+    def useJlink = wantJlink
+
+    inputs.file(appJar).withPropertyName('appJar')
+    inputs.property('packagingJavaHome', javaHomeP)
+    inputs.property('useJlink', useJlink)
+    inputs.property('multiRelease', multiRelease)
+    inputs.property('jmodsOverride', jmodsPathOverride ?: '')
+    outputs.dir(imageDir).withPropertyName('runtimeImage')
+
     doLast {
-        if (!org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-            println 'jlinkImage skipped: not macOS'
+        def target = imageDir.get().asFile
+        if (!onMac.get()) {
+            target.deleteDir()
+            logger.lifecycle 'jlinkImage skipped: not macOS'
             return
         }
-        if (project.findProperty('packagingUseJlink')?.toString()?.toBoolean() == false) {
+        if (!useJlink) {
             // Drop any image left by an earlier build, otherwise jpackageDmg would still
             // pick it up and the documented opt-out would silently do nothing.
-            runtimeImageDir.deleteDir()
-            println 'jlinkImage skipped: packagingUseJlink=false'
+            target.deleteDir()
+            logger.lifecycle 'jlinkImage skipped: packagingUseJlink=false'
             return
         }
-        def javaHome = (project.findProperty('packagingJavaHome') ?: project.findProperty('org.gradle.java.home') ?: System.getenv('JAVA_HOME') ?: System.getProperty('java.home'))
-        def jdepsBin = (project.findProperty('packagingJdepsBin') ?: new File(javaHome, 'bin/jdeps').absolutePath)
-        def jlinkBin = (project.findProperty('packagingJlinkBin') ?: new File(javaHome, 'bin/jlink').absolutePath)
-        def explicitJmods = project.findProperty('packagingJmodsPath')
-        // Build a module-path for jlink that works across different JDK layouts (Temurin/Oracle/GraalVM)
-        def modulePathCandidates = [] as List<File>
-        if (explicitJmods) modulePathCandidates << new File(explicitJmods.toString())
-        modulePathCandidates.addAll([
-                new File(javaHome, 'jmods'),
-                new File(javaHome, 'lib/jmods'),
-                new File(javaHome, 'lib/modules')
-        ])
-        modulePathCandidates = modulePathCandidates.findAll { it.exists() }
-        if (modulePathCandidates.isEmpty()) {
-            println "jlinkImage warning: No platform modules found under ${javaHome}. Looked in packagingJmodsPath, jmods, lib/jmods, lib/modules. Falling back to full JDK at runtime."
-            return
-        }
-        def jmodsDir = modulePathCandidates.collect { it.absolutePath }.join(File.pathSeparator)
-        runtimeImageDir.deleteDir() // jlink requires output directory to NOT exist
+        def javaHome = javaHomeP.get()
+        def jdepsBin = jdepsBinOverride ?: new File(javaHome, 'bin/jdeps').absolutePath
+        def jlinkBin = jlinkBinOverride ?: new File(javaHome, 'bin/jlink').absolutePath
 
-        def mr = (System.properties['java.specification.version'] ?: '17').toString()
+        // Works across JDK layouts (Temurin/Oracle/GraalVM)
+        def modulePath = [jmodsPathOverride ? new File(jmodsPathOverride) : null,
+                          new File(javaHome, 'jmods'),
+                          new File(javaHome, 'lib/jmods'),
+                          new File(javaHome, 'lib/modules')]
+                .findAll { it != null && it.exists() }
+        if (modulePath.isEmpty()) {
+            logger.warn "jlinkImage warning: no platform modules under ${javaHome}. Falling back to the full JDK."
+            target.deleteDir()
+            return
+        }
+        target.deleteDir() // jlink requires the output directory to NOT exist
+
         def sout = new ByteArrayOutputStream()
         def serr = new ByteArrayOutputStream()
-        try {
-            exec {
-                // -q to suppress warnings mixing into stdout on some JDKs
-                commandLine jdepsBin, '-q', '--multi-release', mr, '--ignore-missing-deps', '--print-module-deps', new File(jpkgInputDir, 'ramus.jar').absolutePath
-                standardOutput = sout
-                errorOutput = serr
-                ignoreExitValue true
-            }
-        } catch (Exception ex) {
-            println "jlinkImage warning: jdeps not available at ${jdepsBin}. Falling back to default module set."
+        // --multi-release used to come from the DAEMON's java.specification.version, so jdeps
+        // could resolve multi-release classes for a JVM that will never run them. Bind it to
+        // the JDK actually being bundled.
+        def result = services.exec.exec {
+            commandLine jdepsBin, '-q', '--multi-release', multiRelease,
+                    '--ignore-missing-deps', '--print-module-deps', appJar.get().asFile.absolutePath
+            standardOutput = sout
+            errorOutput = serr
+            ignoreExitValue = true
         }
-        def raw = sout.toString()
-        def lines = raw.readLines().collect { it.trim() }.findAll { it }
-        // Pick the last line that looks like a comma-separated module list
+        if (result.exitValue != 0) {
+            // Previously indistinguishable from a silent success, which is how a DMG could
+            // quietly ship the default module set.
+            logger.warn "jlinkImage warning: jdeps exited ${result.exitValue}: ${serr.toString('UTF-8').trim()}"
+        }
+
+        def lines = sout.toString('UTF-8').readLines().collect { it.trim() }.findAll { it }
         def detected = lines.reverse().find { it ==~ /[a-z0-9_.]+(\s*,\s*[a-z0-9_.]+)*/ }
         if (!detected) {
             // Reasonable default set for Swing + H2 + common APIs
             detected = 'java.base,java.desktop,java.datatransfer,java.logging,java.prefs,java.scripting,java.xml,java.xml.crypto,java.sql,java.naming,jdk.unsupported,jdk.charsets,jdk.xml.dom'
-            println "jdeps did not detect modules; using default set: ${detected}"
+            logger.lifecycle "jdeps did not detect modules; using default set: ${detected}"
         } else {
-            // Sanitize and ensure base module present
             def mods = detected.split(',').collect { it.trim() }.findAll { it ==~ /[a-z][a-z0-9_.]*/ }
             if (!mods.contains('java.base')) mods.add(0, 'java.base')
             detected = mods.unique().join(',')
-            println "Detected modules: ${detected}"
+            logger.lifecycle "Detected modules: ${detected}"
         }
         // Modules loaded through the service-provider mechanism rather than referenced in
         // bytecode. jdeps cannot see them, so they must be added by hand or jlink drops them.
         //
         //   jdk.localedata - without it the image carries 5 locales instead of 1069: a user
-        //     who switches the UI to Russian or Ukrainian still gets "Jan" for January and
-        //     1,234.5 instead of 1 234,5, even though the interface strings translate. ~10 MB.
+        //     who switches the UI to Russian still gets "Jan" for January and 1,234.5 instead
+        //     of 1 234,5, even though the interface strings translate. ~10 MB.
         //   jdk.crypto.ec  - without it every HTTPS handshake fails outright, because modern
         //     servers require ECDHE. Nothing in the app uses HTTPS today (the update check is
         //     plain http and the About links open in the system browser), so this is insurance
@@ -212,82 +296,107 @@ tasks.register('jlinkImage') {
         def missing = serviceModules.findAll { !(it in detected.split(',').collect { m -> m.trim() }) }
         if (missing) {
             detected = detected + ',' + missing.join(',')
-            println "Added service-loaded modules jdeps cannot detect: ${missing.join(',')}"
+            logger.lifecycle "Added service-loaded modules jdeps cannot detect: ${missing.join(',')}"
         }
         try {
-            exec {
+            services.exec.exec {
                 commandLine jlinkBin,
-                        '--module-path', jmodsDir,
+                        '--module-path', modulePath*.absolutePath.join(File.pathSeparator),
                         '--add-modules', detected,
-                        '--no-header-files', '--no-man-pages', '--strip-debug', '--compress', '2',
-                        '--output', runtimeImageDir.absolutePath
+                        '--no-header-files', '--no-man-pages', '--strip-debug',
+                        // The numeric --compress values are deprecated on every supported JDK
+                        // and slated for removal; zip-6 is the current spelling of the same
+                        // thing. Requires JDK 21+, which packagingJdkVersion guarantees.
+                        '--compress', 'zip-6',
+                        '--output', target.absolutePath
             }
-            println "Built custom runtime image at: ${runtimeImageDir}"
+            logger.lifecycle "Built custom runtime image at: ${target}"
         } catch (Exception ex) {
-            println "jlinkImage warning: jlink failed (${ex.message}). Falling back to full JDK at runtime."
-            runtimeImageDir.deleteDir()
+            logger.warn "jlinkImage warning: jlink failed (${ex.message}). Falling back to full JDK at runtime."
+            target.deleteDir()
         }
     }
 }
 
-tasks.register('jpackageDmg', Exec) {
+// The static part of the jpackage command line, known at configuration time so it can serve
+// as a real task input - with Exec + doFirst, changing --vendor would not invalidate anything.
+def staticJpackageArgs = [
+        '--type', 'dmg',
+        '--dest', dmgDestDir.asFile.absolutePath,
+        '--name', appName,
+        '--app-version', appVersion,
+        '--main-jar', 'ramus.jar',
+        '--main-class', 'com.ramussoft.local.Main',
+        '--vendor', 'Ramus Next Project',
+        '--copyright', 'Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy; (C) 2026 Stanislav Vinokur. GPL-3.0.',
+        '--description', 'Ramus Next - IDEF0 and DFD business process modeller.',
+        '--mac-package-identifier', 'com.stasvinokur.ramusnext',
+        '--mac-package-name', appDisplayName,
+        '--java-options', '-Dapple.laf.useScreenMenuBar=true',
+]
+// Deliberately NOT passing -Dapple.awt.application.name: jpackage splits every --java-options
+// value on whitespace when it writes the .cfg, so a name containing a space becomes two
+// entries and the second one ("Next") reaches the JVM as a main class, making the packaged app
+// fail to start with ClassNotFoundException. The bundled app takes its menu bar name from
+// CFBundleName (set via --mac-package-name) anyway, and Main.java sets the property at runtime
+// for the unpackaged case.
+
+tasks.register('jpackageDmg') {
+    group = 'distribution'
+    description = 'Runs jpackage to produce the DMG.'
     dependsOn 'prepareJpackageInput', 'makeIcns', 'jlinkImage'
-    workingDir macWorkDir
-    // Everything below is resolved in doFirst, i.e. at execution time. It must NOT move back
-    // into the configuration block: runtimeImageDir is produced by the jlinkImage task this one
-    // depends on, so at configuration time it does not exist yet on a clean tree and the runtime
-    // choice would silently fall back to the full JDK.
-    doFirst {
-        if (!org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-            throw new GradleException('jpackageDmg must be executed on macOS')
+
+    def services = objects.newInstance(PackagingServices)
+    def onMac = isMacOs
+    def javaHomeP = packagingHome
+    def imageDir = runtimeImageDir
+    def inputDir = jpkgInputDir
+    def icns = icnsFile
+    def destDir = dmgDestDir
+    def args = staticJpackageArgs
+    def outDmg = dmgDestDir.file("${appName}-${appVersion}.dmg")
+
+    inputs.dir(inputDir).withPropertyName('jpackageInput')
+    inputs.file(icns).withPropertyName('icns')
+    // files() rather than dir(): the image legitimately may not exist when jlink is disabled,
+    // and an @InputDirectory fails validation on a missing path.
+    inputs.files(imageDir).withPropertyName('runtimeImage')
+    inputs.property('jpackageArgs', args)
+    inputs.property('packagingJavaHome', javaHomeP)
+    outputs.file(outDmg).withPropertyName('dmg')
+
+    doLast {
+        if (!onMac.get()) throw new GradleException('jpackageDmg must be executed on macOS')
+        def javaHome = javaHomeP.get()
+        destDir.asFile.mkdirs()
+
+        // jpackage refuses to overwrite an existing bundle, so a repeated run would fail on
+        // the artifact left by the previous one.
+        def dmg = outDmg.asFile
+        if (dmg.exists()) {
+            dmg.delete()
+            logger.lifecycle "Removed previous ${dmg.name}"
         }
-        dmgDestDir.mkdirs()
 
-        def javaHome = (project.findProperty('packagingJavaHome') ?: project.findProperty('org.gradle.java.home') ?: System.getenv('JAVA_HOME') ?: System.getProperty('java.home'))
-        def jpackageBin = new File(javaHome, 'bin/jpackage').absolutePath
-        def rawVer = (project.version ?: '1.0.0').toString()
-        def appVer = rawVer.replaceAll(/[^0-9.]/,'')
-        if (!(appVer ==~ /\d+(\.\d+){0,2}/)) { appVer = '1.0.0' }
-
-        // jpackage refuses to overwrite an existing bundle, so a repeated run would fail
-        // on the artifact left by the previous one.
-        def dmgFile = new File(dmgDestDir, "${appName}-${appVer}.dmg")
-        if (dmgFile.exists()) {
-            dmgFile.delete()
-            println "Removed previous ${dmgFile.name}"
-        }
-
-        // Choose a runtime image: prefer the jlink output, otherwise use the full JDK
-        def hasJlinkImage = runtimeImageDir.exists() && new File(runtimeImageDir, 'bin/java').exists()
-        def runtimePath = hasJlinkImage ? runtimeImageDir.absolutePath : javaHome
-        if (hasJlinkImage) {
-            println "Bundling the jlink runtime image from ${runtimeImageDir}"
+        // Still resolved at execution time, and for the original reason: runtimeImageDir is
+        // produced by the jlinkImage task this one depends on, so on a clean tree it does not
+        // exist at configuration time and the runtime choice would silently fall back to the
+        // full JDK. The configuration cache permits this - what it forbids is touching Project.
+        def image = imageDir.get().asFile
+        def hasImage = new File(image, 'bin/java').exists()
+        def runtimePath = hasImage ? image.absolutePath : javaHome
+        if (hasImage) {
+            logger.lifecycle "Bundling the jlink runtime image from ${image}"
         } else {
-            println "Bundling the full JDK from ${javaHome} (no jlink image available)"
+            logger.lifecycle "Bundling the full JDK from ${javaHome} (no jlink image available)"
         }
 
-        commandLine jpackageBin,
-                '--type', 'dmg',
-                '--dest', dmgDestDir.absolutePath,
-                '--name', appName,
-                '--app-version', appVer,
-                '--input', jpkgInputDir.absolutePath,
-                '--main-jar', 'ramus.jar',
-                '--main-class', 'com.ramussoft.local.Main',
-                '--icon', icnsFile.absolutePath,
-                '--vendor', 'Ramus Next Project',
-                '--copyright', 'Copyright (C) 2005-2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy; (C) 2026 Stanislav Vinokur. GPL-3.0.',
-                '--description', 'Ramus Next - IDEF0 and DFD business process modeller.',
-                '--mac-package-identifier', 'com.stasvinokur.ramusnext',
-                '--mac-package-name', appDisplayName,
-                '--runtime-image', runtimePath,
-                '--java-options', '-Dapple.laf.useScreenMenuBar=true'
-        // Deliberately NOT passing -Dapple.awt.application.name here: jpackage splits every
-        // --java-options value on whitespace when it writes the .cfg, so a name containing a
-        // space becomes two entries and the second one ("Next") reaches the JVM as a main class,
-        // making the packaged app fail to start with ClassNotFoundException. The bundled app
-        // takes its menu bar name from CFBundleName (set via --mac-package-name) anyway, and
-        // Main.java sets the property at runtime for the unpackaged case.
+        services.exec.exec {
+            commandLine([new File(javaHome, 'bin/jpackage').absolutePath] + args +
+                    ['--input', inputDir.get().asFile.absolutePath,
+                     '--icon', icns.get().asFile.absolutePath,
+                     '--runtime-image', runtimePath])
+        }
     }
 }
 
@@ -297,30 +406,23 @@ tasks.register('macDmg') {
     dependsOn 'jpackageDmg'
 }
 
-task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
-    // Resolve bundle directories eagerly so Gradle doesn't treat DirectoryProperty objects as strings.
-    def appDir = new File(buildDir, "mac-app/${appName}.app")
-    def contentsDir = new File(appDir, 'Contents')
-    def macOSDir = new File(contentsDir, 'MacOS')
-    def resourcesDir = new File(contentsDir, 'Resources')
+// Sync rather than Copy: the old task used Contents/MacOS as its destination root, so a
+// rename would leave orphans in the bundle forever. The Info.plist and launcher are built at
+// configuration time so they are real task inputs, and CFBundleVersion now tracks
+// project.version instead of the hard-coded 2.0 it had drifted to.
+tasks.register('createMacApp', Sync) {
+    group = 'distribution'
+    description = "Assembles an unsigned ${appName}.app under build/mac-app for local testing."
+    dependsOn 'makeIcns'
 
-    from shadowJar.archiveFile
-    into macOSDir
-    rename { filename -> 'ramus.jar' }
+    def appDir = layout.buildDirectory.dir("mac-app/${appName}.app")
+    def bundleName = appName
 
-    doLast {
-        // Create app bundle structure
-        macOSDir.mkdirs()
-        resourcesDir.mkdirs()
+    into appDir
+    from(tasks.named('shadowJar')) { into 'Contents/MacOS'; rename { 'ramus.jar' } }
+    from(icnsFile) { into 'Contents/Resources' }
 
-        // Copy app icon (produced by makeIcns, which this task depends on)
-        if (icnsFile.exists()) {
-            copy { from icnsFile; into resourcesDir }
-        }
-
-        // Create Info.plist
-        def infoPlist = new File(contentsDir, 'Info.plist')
-        infoPlist.text = """<?xml version="1.0" encoding="UTF-8"?>
+    def plistText = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -331,9 +433,9 @@ task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
     <key>CFBundleIdentifier</key>
     <string>com.stasvinokur.ramusnext</string>
     <key>CFBundleVersion</key>
-    <string>2.0</string>
+    <string>${appVersion}</string>
     <key>CFBundleShortVersionString</key>
-    <string>2.0</string>
+    <string>${appVersion}</string>
     <key>CFBundleExecutable</key>
     <string>${appName}</string>
     <key>CFBundleIconFile</key>
@@ -353,15 +455,23 @@ task createMacApp(type: Copy, dependsOn: [shadowJar, makeIcns]) {
 </dict>
 </plist>"""
 
-        // Create executable script
-        def executable = new File(macOSDir, appName)
-        executable.text = """#!/bin/bash
+    // -Xdock:name is parsed by a real shell here, so the spaced display name must stay quoted:
+    // unquoted, "Next" would arrive as a bogus argument and the JVM would refuse to start.
+    def launcherText = """#!/bin/bash
 cd "\$(dirname "\$0")"
 # Use the app's icon in the Dock instead of the Java default
 exec java -Xdock:name="${appDisplayName}" -Xdock:icon="../Resources/${appName}.icns" -jar ramus.jar "\$@"
 """
-        executable.setExecutable(true)
 
-        println "macOS app created at: ${appDir.absolutePath}"
+    inputs.property('infoPlist', plistText)
+    inputs.property('launcher', launcherText)
+
+    doLast {
+        def contents = new File(appDir.get().asFile, 'Contents')
+        new File(contents, 'Info.plist').text = plistText
+        def executable = new File(contents, "MacOS/${bundleName}")
+        executable.text = launcherText
+        executable.setExecutable(true)
+        logger.lifecycle "macOS app created at: ${appDir.get().asFile}"
     }
 }
