@@ -2,7 +2,6 @@ package com.ramussoft.gui.qualifier;
 
 import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Toolkit;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.text.DateFormat;
@@ -31,6 +30,7 @@ import com.ramussoft.core.history.Record;
 import com.ramussoft.gui.common.AttributePlugin;
 import com.ramussoft.gui.common.GUIFramework;
 import com.ramussoft.gui.common.GlobalResourcesManager;
+import com.ramussoft.gui.common.Icons;
 import com.ramussoft.gui.common.prefrence.Options;
 import com.ramussoft.gui.qualifier.table.DialogedTableCellEditor;
 import com.ramussoft.gui.qualifier.table.ElementsTable;
@@ -58,8 +58,8 @@ public class HistoryDialog extends JDialog implements Closeable {
                          final QualifierHistoryPlugin plugin, final Element element,
                          final Attribute attribute) {
         super(framework.getMainFrame());
-        this.setIconImage(Toolkit.getDefaultToolkit().getImage(
-                getClass().getResource("/com/ramussoft/gui/table/history.png")));
+        this.setIconImage(Icons.image("/com/ramussoft/gui/table/history.png")
+                .getImage());
         this.framework = framework;
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setTitle(GlobalResourcesManager.getString("HistoryDialog.title")

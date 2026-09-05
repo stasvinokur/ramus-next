@@ -91,9 +91,9 @@ public class ModelPropertiesDialog extends BaseDialog {
     public ModelPropertiesDialog(GUIFramework framework,
                                  final Qualifier function, final Engine engine, AccessRules rules) {
         super(framework.getMainFrame(), true);
-        // Through Icons, not Toolkit: this is the same icon the models tree shows, and it is
-        // a vector now, so reading the classpath directly would look for a bitmap that no
-        // longer exists and leave the window with no icon at all - silently.
+        // Through Icons, not Toolkit. The path is served by a vector now, so getResource
+        // returns null for the bitmap, and Toolkit.getImage(null) does not degrade to a
+        // window without an icon - it throws, and the dialog never opens.
         setIconImage(Icons.image("/images/function.png").getImage());
         this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.engine = engine;

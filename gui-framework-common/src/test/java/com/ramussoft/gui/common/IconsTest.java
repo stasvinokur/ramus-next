@@ -86,14 +86,19 @@ public class IconsTest {
      * in the repository under neither name.
      */
     private static boolean existsInAnyModule(String path) throws IOException {
+        return findInAnyModule(path) != null;
+    }
+
+    private static Path findInAnyModule(String path) throws IOException {
         String relative = path.startsWith("/") ? path.substring(1) : path;
         try (java.util.stream.Stream<Path> roots = Files.list(repositoryRoot())) {
             for (Path module : roots.filter(Files::isDirectory).toArray(Path[]::new)) {
-                if (Files.exists(module.resolve("src/main/resources").resolve(relative)))
-                    return true;
+                Path candidate = module.resolve("src/main/resources").resolve(relative);
+                if (Files.exists(candidate))
+                    return candidate;
             }
         }
-        return false;
+        return null;
     }
 
     @Test
@@ -149,8 +154,9 @@ public class IconsTest {
     }
 
     /**
-     * And the other half, which is what leaves the eight unreplaceable icons alone: no .svg
-     * beside it means the bitmap is served, with no branch in the code naming those icons.
+     * And the other half of the rule: no .svg beside it means the bitmap is served. Nothing the
+     * application asks for takes this path any more - the fixture below is kept precisely so
+     * that the fallback stays pinned rather than quietly rotting once it stopped being used.
      */
     @Test
     public void fallsBackToTheBitmapWhenThereIsNoVector() {
@@ -173,5 +179,90 @@ public class IconsTest {
     @Test
     public void reportsAMissingIconAsNullRatherThanThrowing() {
         assertEquals(null, Icons.get("/com/ramussoft/gui/there-is-no-such-icon.png"));
+    }
+
+    /**
+     * Resolving is not the same as rendering, and this is where the difference bites. Feed
+     * jsvg a path with corrupt data and it does not complain: the icon reports itself as
+     * found, painting throws nothing, and the only trace is an INFO line in java.util.logging.
+     * What you get on screen is a blank, or a scattering of stray pixels.
+     *
+     * <p>Which matters here more than it would elsewhere, because four of these files are
+     * generated geometry rather than exported artwork - the case where a silent malformation
+     * is likeliest. So every icon is actually painted, and the pixels are counted.
+     */
+    @Test
+    public void everyIconPaintsSomething() throws Exception {
+        List<String> blank = new ArrayList<String>();
+        for (String path : literalIconPaths()) {
+            Path file = findInAnyModule(Icons.vectorPath(path));
+            if (file == null)
+                file = findInAnyModule(path);
+            if (file == null)
+                continue; // already reported by everyIconTheSourceAsksForExists
+            if (ink(file) == 0)
+                blank.add(path + " -> " + repositoryRoot().relativize(file));
+        }
+        assertEquals("icons that load but paint nothing: " + blank, 0, blank.size());
+    }
+
+    /** Paints the file at 16x16 the way a toolbar would, and counts non-transparent pixels. */
+    private static int ink(Path file) throws Exception {
+        java.net.URL url = file.toUri().toURL();
+        javax.swing.Icon icon = file.toString().endsWith(".svg")
+                ? new com.formdev.flatlaf.extras.FlatSVGIcon(url)
+                : new javax.swing.ImageIcon(url);
+        java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(
+                16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = image.createGraphics();
+        g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        icon.paintIcon(null, g, 0, 0);
+        g.dispose();
+        int ink = 0;
+        for (int y = 0; y < 16; y++)
+            for (int x = 0; x < 16; x++)
+                if ((image.getRGB(x, y) >>> 24) > 20)
+                    ink++;
+        return ink;
+    }
+
+    /** getResource / getResourceAsStream / Toolkit.getImage on a bitmap path. */
+    private static final Pattern BYPASS = Pattern.compile(
+            "get(?:Resource|ResourceAsStream)\\(\\s*\"([^\"]+\\.(?:png|gif|jpg|jpeg))\"");
+
+    /**
+     * The one mistake this class cannot otherwise see. Three window icons read their bitmap
+     * straight off the classpath instead of through the loader, so they kept showing the 2006
+     * artwork after the icon beside them had been redrawn - and when the bitmap was finally
+     * deleted, {@code Toolkit.getImage(null)} did not degrade to a window without an icon, it
+     * threw and the dialog stopped opening. Every one of the three was found by hand, late.
+     *
+     * <p>The rule is not an allowlist, which would need maintaining. Reading a bitmap directly
+     * is fine while that is genuinely all there is - a mouse cursor, an application icon with
+     * no vector. It becomes a bug at the moment someone puts a .svg beside it, and that is
+     * exactly what is asserted.
+     */
+    @Test
+    public void nothingBypassesTheLoaderForAPathThatHasAVector() throws Exception {
+        List<String> stale = new ArrayList<String>();
+        for (Path source : javaSources()) {
+            if (source.getFileName().toString().equals("Icons.java"))
+                continue;
+            for (String line : Files.readAllLines(source, StandardCharsets.UTF_8)) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("*") || trimmed.startsWith("//"))
+                    continue; // commented-out code, of which there is plenty
+                Matcher m = BYPASS.matcher(line);
+                while (m.find()) {
+                    String path = m.group(1);
+                    if (existsInAnyModule(Icons.vectorPath(path)))
+                        stale.add(repositoryRoot().relativize(source) + ": " + path);
+                }
+            }
+        }
+        assertEquals("these read a bitmap off the classpath for a path that now has a vector, "
+                + "so they show stale artwork or fail outright - route them through Icons: "
+                + stale, 0, stale.size());
     }
 }

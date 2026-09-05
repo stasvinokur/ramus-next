@@ -5,7 +5,6 @@ import info.clearthought.layout.TableLayout;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -594,9 +593,8 @@ public class QualifierPreferencesPanel extends JPanel {
                     super.onOk();
             }
         };
-        dialog.setIconImage(Toolkit.getDefaultToolkit().getImage(
-                getClass()
-                        .getResource("/com/ramussoft/gui/table/qualifier.png")));
+        dialog.setIconImage(Icons.image("/com/ramussoft/gui/table/qualifier.png")
+                .getImage());
         dialog.setTitle(GlobalResourcesManager
                 .getString("QialifierPreferenciesDialog.Title"));
         dialog.setMainPane(this);

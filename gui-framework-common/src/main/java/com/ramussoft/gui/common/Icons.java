@@ -28,6 +28,12 @@ import com.formdev.flatlaf.extras.FlatSVGIcon;
  */
 public final class Icons {
 
+    /**
+     * One icon instance per path, shared by every call site. Fine today, because nothing
+     * mutates an icon after loading it. A dark theme should recolour through a single global
+     * {@code FlatSVGIcon.ColorFilter} for that reason - a per-icon {@code setColorFilter} here
+     * would change the icon everywhere it is already on screen.
+     */
     private static final Map<String, Icon> CACHE = new ConcurrentHashMap<String, Icon>();
 
     /**
@@ -69,10 +75,10 @@ public final class Icons {
      * bytes. Everywhere else should use {@link #get}, which is deliberately free to return
      * something that is not a bitmap.
      *
-     * <p>Whatever {@link #get} renders, these call sites always end up with a bitmap: if the
-     * shared icon is not one, a raster is loaded for them separately rather than handing back
-     * null. A null icon is a legal thing to give a Swing component, so getting that wrong
-     * would blank these out with nothing in the log.
+     * <p>It returns the same instance {@link #get} does. That is not luck and it is worth
+     * knowing: {@code FlatSVGIcon} extends {@link ImageIcon}, so a vector already satisfies
+     * the cast and the second branch below is unreachable for anything that loaded at all.
+     * It stays as the guard it looks like, rather than as a promise this method keeps.
      */
     public static ImageIcon image(final String path) {
         Icon icon = lookup(path);
@@ -110,8 +116,7 @@ public final class Icons {
      *
      * <p>Every icon the application asks for now has one, so the bitmap branch is not reached
      * in a running application. It stays because the rule it expresses is what let the set be
-     * replaced in pieces, and because {@link #image} needs it when a caller demands a raster
-     * of something that is not one.
+     * replaced in pieces, and it is still pinned by a test fixture kept for the purpose.
      */
     private static Icon load(final String path) {
         URL svg = Icons.class.getResource(vectorPath(path));

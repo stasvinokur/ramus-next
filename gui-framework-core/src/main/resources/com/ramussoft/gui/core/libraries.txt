@@ -13,12 +13,9 @@ You can obtain sources of the mentioned project on the web sites.
 
 Icons library:
 
-The interface icons are Fluent UI System Icons by Microsoft
+Most interface icons are Fluent UI System Icons by Microsoft
 https://github.com/microsoft/fluentui-system-icons
-
-The four IDEF0 and DFD notation marks - the arrow tool, the squiggle tool, the
-external reference and the data store - are drawn for this application, because
-no general icon set contains them. They follow the same 16-unit grid.
+and are used under the MIT License reproduced below:
 
 MIT License
 
@@ -41,6 +38,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The four IDEF0 and DFD notation marks - the arrow tool, the squiggle tool, the
+external reference and the data store - are not from that set. They are drawn
+for this application, on the same 16-unit grid, because no general icon set
+contains them.
 
 The icon library a user can choose from for their own model elements is Silk
 by Mark James, and remains in use - the icons a user picked are stored inside
