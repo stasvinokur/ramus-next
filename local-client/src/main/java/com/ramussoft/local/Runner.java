@@ -317,6 +317,9 @@ public class Runner implements Commands {
                         };
                         thread.start();
                     }
+                    // Hidden is not gone: a realized window keeps its peer and goes on
+                    // taking part in the modal-blocking calculation of every later dialog.
+                    dispose();
                 }
             }
         };
@@ -437,8 +440,6 @@ public class Runner implements Commands {
                 return true;
             } catch (Exception e) {
                 e.printStackTrace();
-                if (screen != null)
-                    screen.setVisible(false);
                 if (e instanceof FileMinimumVersionException) {
                     JOptionPane
                             .showMessageDialog(
@@ -453,10 +454,8 @@ public class Runner implements Commands {
                             .showMessageDialog(null, e.getLocalizedMessage());
                 return false;
             } finally {
-                if (FilePlugin.plugins.size() < 2) {
-                    if (screen != null)
-                        screen.setVisible(false);
-                }
+                if (screen != null)
+                    screen.setVisible(false);
             }
         }
     }
@@ -809,18 +808,20 @@ public class Runner implements Commands {
                 screen.setLocationRelativeTo(null);
                 screen.setVisible(true);
 
-                final JFrame frame = openInNewWindows(engine, accessor,
-                        sourceFile, true);
-                SwingUtilities.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        String recovered = GlobalResourcesManager
-                                .getString("File.Recovered");
-                        frame.setTitle(frame.getTitle() + " " + recovered);
-                    }
-                });
-
-                screen.setVisible(false);
+                try {
+                    final JFrame frame = openInNewWindows(engine, accessor,
+                            sourceFile, true);
+                    SwingUtilities.invokeLater(new Runnable() {
+                        @Override
+                        public void run() {
+                            String recovered = GlobalResourcesManager
+                                    .getString("File.Recovered");
+                            frame.setTitle(frame.getTitle() + " " + recovered);
+                        }
+                    });
+                } finally {
+                    screen.setVisible(false);
+                }
             }
         };
         recoveredCount++;

@@ -370,6 +370,12 @@ public class NewProjectDialog extends JDialog {
         setMinimumSize(new Dimension(size.width, size.height + 30));
         setLocationRelativeTo(null);
         setVisible(true);
+        // setVisible(true) on a modal dialog returns when it is hidden, so this runs
+        // once the wizard is finished with. Hiding alone would leave it realized, and a
+        // realized window keeps taking part in the modal-blocking calculation of every
+        // dialog opened afterwards - the close operation was set to DO_NOTHING_ON_CLOSE
+        // a few lines above, so nothing else disposes it.
+        dispose();
         frame.repaint();
     }
 
