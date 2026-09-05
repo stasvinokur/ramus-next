@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.util.HexFormat;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Properties;
@@ -32,7 +33,6 @@ import javax.swing.JTable;
 import javax.swing.UIManager;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
-import javax.xml.bind.DatatypeConverter;
 
 import com.dsoft.pb.idef.ResourceLoader;
 import com.ramussoft.pb.frames.components.RowFindPanel;
@@ -619,7 +619,7 @@ public class Options {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
         try {
             DataSaver.saveStroke(os, stroke, new DataLoader.MemoryData());
-            setString(name, DatatypeConverter.printHexBinary(os.toByteArray()));
+            setString(name, HexFormat.of().withUpperCase().formatHex(os.toByteArray()));
         } catch (IOException e) {
         }
     }
@@ -629,7 +629,7 @@ public class Options {
         if (val == null)
             return defaultStroke;
         ByteArrayInputStream is = new ByteArrayInputStream(
-                DatatypeConverter.parseHexBinary(val));
+                HexFormat.of().parseHex(val));
         try {
             return DataLoader.readStroke(is, new DataLoader.MemoryData());
         } catch (IOException e) {// shell never happen
