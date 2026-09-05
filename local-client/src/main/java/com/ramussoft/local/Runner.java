@@ -161,14 +161,17 @@ public class Runner implements Commands {
             }
 
             try {
-                String lang = Options.getString("LANG");
+                // Russian is the product's own language, so it is the default even where the
+                // operating system says otherwise. The two-argument form writes its default
+                // back into options.conf on first read, which is the point: it stops "never
+                // chose a language" and "chose Russian" being the same state on disk, so
+                // changing this default later cannot move the language under an existing user.
+                String lang = Options.getString("LANG", "ru");
 
-                if (lang != null) {
-                    try {
-                        Locale.setDefault(new Locale(lang));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                try {
+                    Locale.setDefault(new Locale(lang));
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
 
                 // After the locale: the look and feel replaces the whole UIDefaults table,

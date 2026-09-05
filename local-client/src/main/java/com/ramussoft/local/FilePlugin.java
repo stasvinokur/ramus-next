@@ -792,9 +792,17 @@ public class FilePlugin extends AbstractViewPlugin implements Commands {
                         .isSelected());
                 Options.setBoolean(CHECK_FOR_UPDATES, checkForUpdates
                         .isSelected());
-                Options.setString("LANG", ((Lang) langsBox.getSelectedItem()).key);
-                Locale newLocale = new Locale(((Lang) langsBox.getSelectedItem()).key);
-                Locale.setDefault(newLocale);
+                String previous = Options.getString("LANG");
+                String chosen = ((Lang) langsBox.getSelectedItem()).key;
+                Options.setString("LANG", chosen);
+                Locale.setDefault(new Locale(chosen));
+                if (!chosen.equals(previous)) {
+                    // setDefault does not reach the bundles: nine classes bind theirs at
+                    // class-init and nothing clears the cache, so the interface stays in the
+                    // old language until the next launch. It used to change silently.
+                    JOptionPane.showMessageDialog(dialog, GlobalResourcesManager
+                            .getString("LookAndFeelWillApplyAfterProgramReboot"));
+                }
                 return true;
             }
 
