@@ -16,6 +16,10 @@ Icons library:
 The interface icons are Fluent UI System Icons by Microsoft
 https://github.com/microsoft/fluentui-system-icons
 
+The four IDEF0 and DFD notation marks - the arrow tool, the squiggle tool, the
+external reference and the data store - are drawn for this application, because
+no general icon set contains them. They follow the same 16-unit grid.
+
 MIT License
 
 Copyright (c) 2020 Microsoft Corporation

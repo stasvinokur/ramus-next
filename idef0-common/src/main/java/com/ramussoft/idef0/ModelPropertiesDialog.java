@@ -5,7 +5,6 @@ import info.clearthought.layout.TableLayout;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
@@ -92,8 +91,10 @@ public class ModelPropertiesDialog extends BaseDialog {
     public ModelPropertiesDialog(GUIFramework framework,
                                  final Qualifier function, final Engine engine, AccessRules rules) {
         super(framework.getMainFrame(), true);
-        setIconImage(Toolkit.getDefaultToolkit().getImage(
-                getClass().getResource("/images/function.png")));
+        // Through Icons, not Toolkit: this is the same icon the models tree shows, and it is
+        // a vector now, so reading the classpath directly would look for a bitmap that no
+        // longer exists and leave the window with no icon at all - silently.
+        setIconImage(Icons.image("/images/function.png").getImage());
         this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.engine = engine;
         this.function = function;

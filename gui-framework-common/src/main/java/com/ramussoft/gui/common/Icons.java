@@ -106,9 +106,12 @@ public final class Icons {
      *
      * <p>This is where the icon replacement lives, and it is deliberately not a mapping table
      * in code. Call sites keep passing the paths they always passed; whether an icon has been
-     * redrawn is decided by whether a .svg sits beside it. The icons that cannot be replaced -
-     * the IDEF0 and DFD notation, which no general icon set contains - simply have no .svg,
-     * so they keep loading exactly as before without a single branch mentioning them.
+     * redrawn is decided by whether a .svg sits beside it.
+     *
+     * <p>Every icon the application asks for now has one, so the bitmap branch is not reached
+     * in a running application. It stays because the rule it expresses is what let the set be
+     * replaced in pieces, and because {@link #image} needs it when a caller demands a raster
+     * of something that is not one.
      */
     private static Icon load(final String path) {
         URL svg = Icons.class.getResource(vectorPath(path));
