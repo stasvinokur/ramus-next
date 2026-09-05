@@ -17,7 +17,6 @@ public class Keywords extends Hashtable<String, String> {
 
     public Keywords() {
         load("_ru");
-        load("_uk");
         load("");
     }
 

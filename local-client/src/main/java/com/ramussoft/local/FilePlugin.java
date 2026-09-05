@@ -763,7 +763,6 @@ public class FilePlugin extends AbstractViewPlugin implements Commands {
                 langsBox = new JComboBox();
 
                 langsBox.addItem(new Lang("en", "en_GB"));
-                langsBox.addItem(new Lang("uk", "uk_UA"));
                 langsBox.addItem(new Lang("ru", "ru"));
 
                 for (int i = 0; i < langsBox.getItemCount(); i++) {

@@ -45,60 +45,6 @@ public class Options {
 
     private static String PB_DIR = "ramus";
 
-    public static void setUK() {
-        UIManager.put("FileChooser.lookInLabelText", "Поточна папка:");
-        UIManager.put("FileChooser.fileNameLabelText", "Ім’я фала:");
-        UIManager.put("FileChooser.filesOfTypeLabelText", "Тип файла:");
-        UIManager.put("FileChooser.upFolderToolTipText",
-                "Повернутись ввех на один рівень");
-        UIManager.put("FileChooser.upFolderAccessibleName", "Наверх");
-        UIManager.put("FileChooser.homeFolderToolTipText", "Додому");
-        UIManager.put("FileChooser.homeFolderAccessibleName", "Дододу");
-        UIManager.put("FileChooser.newFolderToolTipText", "Створити папку");
-        UIManager.put("FileChooser.newFolderAccessibleName", "Нова папка");
-        UIManager.put("FileChooser.listViewButtonToolTipText", "Список");
-        UIManager.put("FileChooser.listViewButtonAccessibleName", "Список");
-        UIManager.put("FileChooser.detailsViewButtonToolTipText", "Детально");
-        UIManager
-                .put("FileChooser.detailsViewButtonAccessibleName", "Детально");
-
-        UIManager.put("FileChooser.newFolderErrorText",
-                "Помилка створення нової папки");
-        UIManager.put("FileChooser.newFolderErrorSeparator",
-                "В імені папки присутні недопустимі символи");
-        UIManager.put("FileChooser.fileDescriptionText", "Опис файла");
-        UIManager.put("FileChooser.directoryDescriptionText", "Опис папки");
-        UIManager.put("FileChooser.saveButtonTex", "Зберегти");
-        UIManager.put("FileChooser.openButtonText", "Відкрити");
-        UIManager.put("FileChooser.saveDialogTitleText", "Збереження файла");
-        UIManager.put("FileChooser.openDialogTitleText", "Відкриття...");
-        UIManager.put("FileChooser.cancelButtonText", "Відмінити");
-        UIManager.put("FileChooser.updateButtonText", "Оновити");
-        UIManager.put("FileChooser.helpButtonText", "Допомога");
-
-        UIManager.put("FileChooser.acceptAllFileFilterText", "Всі типи");
-
-        UIManager.put("FileChooser.saveButtonToolTipText", "Зберегти");
-        UIManager.put("FileChooser.openButtonToolTipText", "Відкрити");
-        UIManager.put("FileChooser.cancelButtonToolTipTex", "Відмінити");
-        UIManager.put("FileChooser.updateButtonToolTipText", "Оновити");
-        UIManager.put("FileChooser.helpButtonToolTipText", "Допомога");
-
-        UIManager.put("OptionPane.yesButtonText", "Так");
-        UIManager.put("OptionPane.noButtonText", "Ні");
-        UIManager.put("OptionPane.cancelButtonText", "Відмінити");
-        UIManager.put("OptionPane.titleText", "Дайте відповідь");
-        UIManager.put("OptionPane.messageDialogTitle", "Повідомлення");
-        UIManager.put("OptionPane.inputDialogTitle", "Ввід даних");
-
-        UIManager.put("not_integer", "не являється цілим числом");
-        UIManager.put("not_number", "не являється числом");
-        UIManager.put("not_date", "не являється датою");
-        UIManager.put("not_length", "перевищує максимальну довжину");
-        UIManager.put("not_null", "перевищує максимальну довжину");
-        UIManager.put("type.worning", "Попередження...");
-    }
-
     private static final String FILE_SEPARATOR = System
             .getProperty("file.separator");
 
