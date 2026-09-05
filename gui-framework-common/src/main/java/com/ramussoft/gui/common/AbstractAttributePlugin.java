@@ -12,7 +12,6 @@ import com.ramussoft.common.AccessRules;
 import com.ramussoft.common.Attribute;
 import com.ramussoft.common.Element;
 import com.ramussoft.common.Engine;
-import edu.stanford.ejalbert.BrowserLauncher;
 
 public abstract class AbstractAttributePlugin implements AttributePlugin {
 
@@ -137,18 +136,13 @@ public abstract class AbstractAttributePlugin implements AttributePlugin {
         try {
             return openUrl(new URI(url));
         } catch (Exception e) {
-            try {
-                Desktop.getDesktop().browse(new URI(url));
-            } catch (Exception e1) {
-                try {
-                    new BrowserLauncher().openURLinBrowser(url);
-                } catch (Exception e2) {
-                    e1.printStackTrace();
-                    e2.printStackTrace();
-                    JOptionPane.showMessageDialog(framework.getMainFrame(),
-                            e1.getLocalizedMessage());
-                }
-            }
+            // BrowserLauncher used to sit here as a third attempt. It is a 2005 library,
+            // wrapped by a defunct 2012 OSGi bundle, whose macOS path reflects into
+            // com.apple.mrj and com.apple.eio - packages that no longer exist. Desktop.browse
+            // is the same call the two attempts above already make.
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(framework.getMainFrame(),
+                    e.getLocalizedMessage());
         }
         return false;
     }

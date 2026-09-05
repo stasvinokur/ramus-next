@@ -13,5 +13,5 @@ dependencies {
     implementation project(':report-core')
     implementation project(':gui-qualifier')
     implementation 'de.sciss:jsyntaxpane:1.0.0'
-    testImplementation group: 'junit', name: 'junit', version: '4.11'
+    testImplementation 'junit:junit:4.13.2'
 }

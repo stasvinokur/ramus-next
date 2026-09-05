@@ -7,5 +7,5 @@ dependencies {
     implementation project(':core')
     implementation project(':core-simple-attributes')
     implementation 'org.jfree:jfreechart:1.0.19'
-    testImplementation group: 'junit', name: 'junit', version: '4.11'
+    testImplementation 'junit:junit:4.13.2'
 }

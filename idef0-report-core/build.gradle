@@ -9,5 +9,5 @@ dependencies {
     implementation project(':data-framework-common')
     implementation project(':report-core')
     implementation project(':idef0-core')
-    testImplementation group: 'junit', name: 'junit', version: '4.11'
+    testImplementation 'junit:junit:4.13.2'
 }

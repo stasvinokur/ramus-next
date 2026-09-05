@@ -9,5 +9,5 @@ dependencies {
     implementation project(':core')
     implementation project(':core-simple-attributes')
     implementation 'net.htmlparser.jericho:jericho-html:3.3'
-    testImplementation group: 'junit', name: 'junit', version: '4.11'
+    testImplementation 'junit:junit:4.13.2'
 }

@@ -19,7 +19,6 @@ import com.ramussoft.web.Response;
 import com.ramussoft.web.Server;
 import com.ramussoft.web.Servlet;
 
-import edu.stanford.ejalbert.BrowserLauncher;
 
 public class Navigator {
 
@@ -155,13 +154,8 @@ public class Navigator {
         try {
             Desktop.getDesktop().browse(new URI(url));
         } catch (Exception e1) {
-            try {
-                new BrowserLauncher().openURLinBrowser(url);
-            } catch (Exception e2) {
-                e1.printStackTrace();
-                e2.printStackTrace();
-                JOptionPane.showMessageDialog(null, e1.getLocalizedMessage());
-            }
+            e1.printStackTrace();
+            JOptionPane.showMessageDialog(null, e1.getLocalizedMessage());
         }
     }
 

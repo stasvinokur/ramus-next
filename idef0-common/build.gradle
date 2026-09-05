@@ -7,7 +7,15 @@ dependencies {
     implementation project(':gui-framework-core')
     implementation project(':idef0-core')
     implementation project(':report-common')
-    implementation 'org.freehep:freehep-graphicsio-emf:2.4'
+    // freehep-io, -graphicsbase, -graphics2d and -graphicsio all declare junit at COMPILE
+    // scope, which is how a test framework ended up inside the shipped application jar -
+    // 340 classes of JUnit 4.10 and Hamcrest 1.1, plus a freehep test suite. Nothing here
+    // runs them.
+    implementation('org.freehep:freehep-graphicsio-emf:2.4') {
+        exclude group: 'junit'
+        exclude group: 'org.hamcrest'
+        exclude group: 'org.freehep', module: 'freehep-graphicsio-tests'
+    }
     implementation 'batik:batik-svggen:1.6-1'
     implementation 'javax.help:javahelp:2.0.05'
     implementation project(':common')
@@ -22,5 +30,5 @@ dependencies {
     implementation 'net.htmlparser.jericho:jericho-html:3.3'
     implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
     implementation 'tablelayout:TableLayout:20050920'
-    testImplementation group: 'junit', name: 'junit', version: '4.11'
+    testImplementation 'junit:junit:4.13.2'
 }
