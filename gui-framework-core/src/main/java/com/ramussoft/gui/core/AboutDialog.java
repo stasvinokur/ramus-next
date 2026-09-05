@@ -1,42 +1,52 @@
 package com.ramussoft.gui.core;
 
-import java.awt.BorderLayout;
 import java.awt.Component;
-import java.awt.Desktop;
-import java.awt.FlowLayout;
-import java.awt.Font;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.RenderingHints;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.image.BaseMultiResolutionImage;
+import java.awt.image.BufferedImage;
 import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
 
 import javax.swing.AbstractAction;
-import javax.swing.JButton;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.InputMap;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
-import javax.swing.JTable;
-import javax.swing.JTextArea;
-import javax.swing.JTextPane;
+import javax.swing.JRootPane;
+import javax.swing.KeyStroke;
+import javax.swing.SwingConstants;
+import javax.swing.UIManager;
 import javax.swing.border.EmptyBorder;
-import javax.swing.event.HyperlinkEvent;
-import javax.swing.event.HyperlinkListener;
-import javax.swing.event.HyperlinkEvent.EventType;
-import javax.swing.table.DefaultTableModel;
 
+import com.formdev.flatlaf.FlatClientProperties;
+import com.formdev.flatlaf.util.UIScale;
 import com.ramussoft.common.Metadata;
-import com.ramussoft.common.Plugin;
-import com.ramussoft.common.attribute.AttributePlugin;
-import com.ramussoft.gui.common.GUIPlugin;
 import com.ramussoft.gui.common.GlobalResourcesManager;
+import com.ramussoft.gui.common.Icons;
 
+/**
+ * The About panel: an icon, a name, a version and a few lines of attribution.
+ *
+ * <p>It used to be a 600x380 window with four tabs - an HTML pane wired to the system browser,
+ * two tables listing plugin names, and a dump of libraries.txt - behind an OK button. None of
+ * that answers the question an About box is asked, which is what this is and what version.
+ *
+ * <p>The third-party notices are no longer shown. {@code libraries.txt} still ships inside the
+ * jar, because the MIT licence asks that the notice travel with the software, not that it be
+ * displayed; there is a comment at the top of that file saying so.
+ */
 public class AboutDialog extends JDialog {
 
     /**
@@ -44,238 +54,135 @@ public class AboutDialog extends JDialog {
      */
     private static final long serialVersionUID = 2259997170092758726L;
 
-    private List<Plugin> plugins;
+    /** Logical size of the icon. The bitmap is 256, so a 2x display gets a real pixel each. */
+    private static final int ICON = 128;
 
-    private List<GUIPlugin> guiPlugins;
+    public AboutDialog(JFrame owner) {
+        // Modal, and it has to stay that way: both call sites dispose() straight after
+        // setVisible(true). Non-modal, setVisible would return at once and the panel would be
+        // torn down in the same frame - a window that flashes and vanishes, with no exception
+        // anywhere to say why.
+        super(owner, true);
+        setTitle(MessageFormat.format(
+                GlobalResourcesManager.getString("About.Title"),
+                Metadata.getApplicationName()));
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
-    public AboutDialog(JFrame frame, List<Plugin> plugins,
-                       List<GUIPlugin> guiPlugins) {
-        super(frame, true);
-        this.setTitle(GlobalResourcesManager.getString("About"));
-        this.plugins = plugins.subList(0, plugins.size());
-        this.guiPlugins = guiPlugins;
-        this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        JTabbedPane pane = new JTabbedPane();
-        pane.addTab(GlobalResourcesManager.getString("About.MainTab"),
-                createAboutComponent());
-        pane.addTab(GlobalResourcesManager.getString("About.PluginList"),
-                createPluginListComponent());
-        pane.addTab(GlobalResourcesManager.getString("About.GUIPluginList"),
-                createGUIPluginListComponent());
+        JPanel content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBorder(new EmptyBorder(UIScale.scale(28), UIScale.scale(40),
+                UIScale.scale(24), UIScale.scale(40)));
 
-        pane.addTab(GlobalResourcesManager.getString("About.ThirdParts"),
-                createThirdPartsComponnt());
+        addIcon(content, appIcon());
+        strut(content, 14);
+        add(content, Metadata.getApplicationName(), "h2", false);
+        strut(content, 4);
+        add(content, MessageFormat.format(
+                GlobalResourcesManager.getString("About.Version"),
+                Metadata.getApplicationVersion()), "small", true);
+        strut(content, 18);
+        add(content, "Copyright \u00A9 2026 Stanislav Vinokur", "small", false);
+        add(content, "Original Ramus \u00A9 2005\u20132025", "small", false);
+        add(content, "Vitaliy Yakovchuk, Oleksiy Chizhevskiy", "small", false);
+        add(content, "macOS version modifications by Vladislav Pavlik", "small", false);
+        strut(content, 14);
+        add(content, "GNU General Public License, version 3", "small", true);
+        add(content, "github.com/stasvinokur/ramus-next", "small", true);
 
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(pane, BorderLayout.CENTER);
-        // There was no border anywhere in this class, so the tabs and the button sat flush
-        // against the window edge.
-        panel.setBorder(new EmptyBorder(8, 8, 8, 8));
-        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        bottomPanel.setBorder(new EmptyBorder(8, 0, 0, 0));
-        bottomPanel.add(new JButton(new AbstractAction(GlobalResourcesManager
-                .getString("ok")) {
+        setContentPane(content);
+        closeOn(content);
+
+        // pack() and nothing else. The old class set a flat 600x380 and then made the window
+        // non-resizable, so a font any larger than the 2009 default had nowhere to go. Sized
+        // by its contents, the panel simply grows with the theme font instead.
+        pack();
+        setResizable(false);
+        setLocationRelativeTo(owner);
+    }
+
+    /**
+     * Escape, Enter, the platform's close shortcut, and a click anywhere on the panel. The
+     * bindings are WHEN_IN_FOCUSED_WINDOW because nothing in here is focusable - it is all
+     * labels - so a WHEN_FOCUSED binding would never fire.
+     */
+    private void closeOn(JPanel content) {
+        AbstractAction close = new AbstractAction() {
             /**
              *
              */
-            private static final long serialVersionUID = -8334150633007409370L;
+            private static final long serialVersionUID = 1L;
 
             @Override
             public void actionPerformed(ActionEvent e) {
-                setVisible(false);
-            }
-        }));
-        panel.add(bottomPanel, BorderLayout.SOUTH);
-        this.setContentPane(panel);
-        // Was a flat setSize(600, 350) with no pack() anywhere in the class, and
-        // setResizable(false) on top - so a font any larger than the 2009 default had
-        // nowhere to go and the user could not work around it either.
-        pack();
-        setSize(Math.max(getWidth(), 600), Math.max(getHeight(), 380));
-        setMinimumSize(getSize());
-        setLocationRelativeTo(getOwner());
-    }
-
-    private Component createThirdPartsComponnt() {
-        JScrollPane pane = new JScrollPane();
-        final JTextArea area = new JTextArea();
-        area.setWrapStyleWord(true);
-        // Was new Font("Sans Serif", ...) - with a space it is not one of Java's logical
-        // families (SansSerif is), so it silently resolved to Dialog. The credits are a list
-        // of library names and versions, which is what a monospaced font is for.
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, area.getFont().getSize()));
-        pane.setViewportView(area);
-        area.setEditable(false);
-        InputStream is = getClass().getResourceAsStream(
-                "/com/ramussoft/gui/core/libraries.txt");
-        try {
-            byte[] bs = new byte[is.available()];
-            is.read(bs);
-            is.close();
-            area.setText(new String(bs, "UTF8"));
-            // Same fix as the main tab, replacing a scrollRectToVisible inside an
-            // invokeLater that did the same job by a longer route.
-            area.setCaretPosition(0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return pane;
-    }
-
-    private Component createGUIPluginListComponent() {
-        JScrollPane pane = new JScrollPane();
-        Object[][] data = new Object[guiPlugins.size()][];
-        for (int i = 0; i < guiPlugins.size(); i++) {
-            GUIPlugin plugin = guiPlugins.get(i);
-            String name = plugin.getName();
-            if (plugin instanceof com.ramussoft.gui.common.AttributePlugin)
-                name = "Attribute."
-                        + name
-                        + "."
-                        + ((com.ramussoft.gui.common.AttributePlugin) plugin)
-                        .getAttributeType().getTypeName();
-            data[i] = new Object[]{name};
-        }
-
-        Arrays.sort(data, new Comparator<Object[]>() {
-
-            @SuppressWarnings("unchecked")
-            @Override
-            public int compare(Object[] o1, Object[] o2) {
-                return ((Comparable<String>) o1[0]).compareTo((String) o2[0]);
-            }
-
-        });
-
-        DefaultTableModel model = new DefaultTableModel(
-                data,
-                new Object[]{GlobalResourcesManager.getString("Plugin.Name")}) {
-            /**
-             *
-             */
-            private static final long serialVersionUID = 4893341040484525590L;
-
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
+                dispose();
             }
         };
-        pane.setViewportView(new JTable(model));
-        return pane;
-    }
-
-    private Component createPluginListComponent() {
-        JScrollPane pane = new JScrollPane();
-        Object[][] data = new Object[plugins.size()][];
-        for (int i = 0; i < plugins.size(); i++) {
-            Plugin plugin = plugins.get(i);
-            String name = plugin.getName();
-            if (plugin instanceof AttributePlugin)
-                name = "Attribute." + name + "."
-                        + ((AttributePlugin) plugin).getTypeName();
-            data[i] = new Object[]{name};
-        }
-
-        Arrays.sort(data, new Comparator<Object[]>() {
-
-            @SuppressWarnings("unchecked")
+        JRootPane root = getRootPane();
+        root.getActionMap().put("close", close);
+        InputMap keys = root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "close");
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "close");
+        keys.put(KeyStroke.getKeyStroke(KeyEvent.VK_W,
+                Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()), "close");
+        content.addMouseListener(new MouseAdapter() {
             @Override
-            public int compare(Object[] o1, Object[] o2) {
-                return ((Comparable<String>) o1[0]).compareTo((String) o2[0]);
+            public void mousePressed(MouseEvent e) {
+                dispose();
             }
-
         });
-
-        DefaultTableModel model = new DefaultTableModel(
-                data,
-                new Object[]{GlobalResourcesManager.getString("Plugin.Name")}) {
-            /**
-             *
-             */
-            private static final long serialVersionUID = -1986847073145962545L;
-
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        pane.setViewportView(new JTable(model));
-        return pane;
     }
 
-    private Component createAboutComponent() {
-        JScrollPane pane = new JScrollPane();
-        JTextPane textPane = new JTextPane();
-        textPane.setContentType("text/html");
-        textPane.setEditable(false);
-        textPane.setText(getAboutText());
-        // setText leaves the caret at the end of the document, and the scroll pane then
-        // scrolls to the caret when it is realised - which pushed the first lines off the
-        // top and left "Version: 2.0.2" cut in half. The same bug was already worked around
-        // on the third-party tab, with a scrollRectToVisible inside invokeLater; this is the
-        // direct form of the same fix.
-        textPane.setCaretPosition(0);
-        textPane.addHyperlinkListener(new HyperlinkListener() {
-
-            @Override
-            public void hyperlinkUpdate(HyperlinkEvent e) {
-                if (e.getEventType() == EventType.ACTIVATED) {
-                    try {
-                        if (e.getDescription().startsWith("mailto:")) {
-                            URI mailtoURI = new URI(e.getDescription());
-                            Desktop.getDesktop().mail(mailtoURI);
-                        } else {
-                            Desktop.getDesktop().browse(
-                                    new URI(e.getURL().toString()));
-                        }
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    } catch (URISyntaxException e1) {
-                        e1.printStackTrace();
-                    }
-                }
-            }
-
-        });
-        pane.setViewportView(textPane);
-        return pane;
+    /**
+     * @param dimmed draws the line in the theme's disabled colour, the way a macOS About panel
+     *               separates the headline from everything under it.
+     */
+    private void add(JPanel content, String text, String styleClass, boolean dimmed) {
+        JLabel label = new JLabel(text, SwingConstants.CENTER);
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        // Named style classes rather than new Font(...): the font then follows the theme, and
+        // a family name that does not resolve cannot silently fall back to Dialog.
+        label.putClientProperty(FlatClientProperties.STYLE_CLASS, styleClass);
+        if (dimmed)
+            label.setForeground(UIManager.getColor("Label.disabledForeground"));
+        content.add(label);
     }
 
-    @SuppressWarnings("unused")
-    private String getAboutText() {
-        StringBuffer sb = new StringBuffer();
-        String applicationName = Metadata.getApplicationName();
-        if (Metadata.DEMO || Metadata.CLIENT) {
-            if (!Metadata.DEMO_REGISTERED)
-                applicationName += " "
-                        + GlobalResourcesManager.getString("UnregisteredCopy");
-            else if (Metadata.DEMO || Metadata.CLIENT)
-                applicationName += " "
-                        + MessageFormat.format(GlobalResourcesManager
-                                .getString("RegisteredName"),
-                        Metadata.REGISTERED_FOR);
-
-        }
-        sb.append("<html><body><font face=\"Sans Serif\">")
-                .append(applicationName).append(" <br><br>Version: ");
-        sb.append(Metadata.getApplicationVersion());
-        sb.append("<br><br>");
-
-        sb.append("Maintained by <a href=\"https://github.com/stasvinokur\">Stanislav Vinokur</a> as <a href=\"https://github.com/stasvinokur/ramus-next\">ramus-next</a><br><br>"
-                + "Copyright &copy; 2026 Stanislav Vinokur.<br>"
-                + "Original Ramus copyright &copy; 2005 - 2025 Vitaliy Yakovchuk, Oleksiy Chizhevskiy.<br>"
-                + "MacOS version modifications by <a href=\"https://github.com/Inv1x/\">Vladislav Pavlik</a>.<br><br>"
-                + "License <a href=\"https://www.gnu.org/licenses/gpl-3.0.en.html\">GNU GENERAL PUBLIC LICENSE Version 3</a><br><br>"
-                + "Project home: <a href=\"https://github.com/stasvinokur/ramus-next\">github.com/stasvinokur/ramus-next</a><br><br>"
-                + "Original project: <a href=\"https://ramussoftware.com/\">ramussoftware.com</a><br><br>"
-                + "</font></body></html>");
-        return sb.toString();
+    private void addIcon(JPanel content, Icon icon) {
+        if (icon == null)
+            return;
+        JLabel label = new JLabel(icon);
+        label.setAlignmentX(Component.CENTER_ALIGNMENT);
+        content.add(label);
     }
 
-    @Override
-    public void dispose() {
-        plugins = null;
-        guiPlugins = null;
-        super.dispose();
+    private void strut(JPanel content, int height) {
+        content.add(Box.createVerticalStrut(UIScale.scale(height)));
+    }
+
+    /**
+     * The application icon at {@link #ICON} points, with a 2x variant so it stays sharp on a
+     * high-resolution display - an ImageIcon scaled by the compositor would be visibly soft.
+     * Both variants are rendered into a BufferedImage rather than through getScaledInstance,
+     * whose lazily-sized result can report a width of -1 while the multi-resolution image is
+     * choosing between them.
+     */
+    private Icon appIcon() {
+        ImageIcon source = Icons.image("/com/ramussoft/gui/app-icon.png");
+        if (source == null)
+            return null;
+        Image image = source.getImage();
+        return new ImageIcon(new BaseMultiResolutionImage(
+                render(image, ICON), render(image, ICON * 2)));
+    }
+
+    private static BufferedImage render(Image source, int size) {
+        BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.drawImage(source, 0, 0, size, size, null);
+        g.dispose();
+        return out;
     }
 }

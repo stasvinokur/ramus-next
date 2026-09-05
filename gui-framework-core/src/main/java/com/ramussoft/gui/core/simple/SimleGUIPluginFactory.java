@@ -378,7 +378,7 @@ public class SimleGUIPluginFactory extends AbstractGUIPluginFactory {
         }
         List<ViewPlugin> list = new ArrayList<ViewPlugin>();
 
-        AboutPlugin aboutPlugin = new AboutPlugin(engine);
+        AboutPlugin aboutPlugin = new AboutPlugin();
         list.add(aboutPlugin);
 
         for (GUIPlugin plugin : plugins) {

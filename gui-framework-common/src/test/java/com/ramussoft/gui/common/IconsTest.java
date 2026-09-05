@@ -206,22 +206,32 @@ public class IconsTest {
         assertEquals("icons that load but paint nothing: " + blank, 0, blank.size());
     }
 
-    /** Paints the file at 16x16 the way a toolbar would, and counts non-transparent pixels. */
+    /**
+     * Paints the icon at its own size and counts non-transparent pixels.
+     *
+     * <p>Its own size, not a fixed 16: almost every icon here is a toolbar icon, but the
+     * application icon the About panel draws is 256, and {@code ImageIcon} paints at natural
+     * size rather than scaling to the graphics clip. Painting that one into a 16x16 buffer
+     * samples its top-left corner, which on a rounded icon is transparent - so a fixed size
+     * reports a perfectly good file as blank.
+     */
     private static int ink(Path file) throws Exception {
         java.net.URL url = file.toUri().toURL();
         javax.swing.Icon icon = file.toString().endsWith(".svg")
                 ? new com.formdev.flatlaf.extras.FlatSVGIcon(url)
                 : new javax.swing.ImageIcon(url);
+        int w = Math.max(icon.getIconWidth(), 1);
+        int h = Math.max(icon.getIconHeight(), 1);
         java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(
-                16, 16, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+                w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB);
         java.awt.Graphics2D g = image.createGraphics();
         g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
                 java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
         icon.paintIcon(null, g, 0, 0);
         g.dispose();
         int ink = 0;
-        for (int y = 0; y < 16; y++)
-            for (int x = 0; x < 16; x++)
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
                 if ((image.getRGB(x, y) >>> 24) > 20)
                     ink++;
         return ink;

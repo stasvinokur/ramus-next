@@ -1,15 +1,10 @@
 package com.ramussoft.local;
 
 import java.awt.Desktop;
-import java.util.List;
-
-import javax.swing.JDialog;
 
 import com.ramussoft.common.Engine;
 import com.ramussoft.common.Metadata;
-import com.ramussoft.common.Plugin;
 import com.ramussoft.gui.common.GUIFramework;
-import com.ramussoft.gui.common.GUIPlugin;
 import com.ramussoft.gui.core.AboutDialog;
 
 public class Main extends Runner {
@@ -34,14 +29,7 @@ public class Main extends Runner {
             System.getProperty("os.name", "").toLowerCase().contains("mac")) {
             try {
                 Desktop.getDesktop().setAboutHandler(e -> {
-                    @SuppressWarnings("unchecked")
-                    List<Plugin> corePlugins = (List<Plugin>) engine.getPluginProperty("Core", "PluginList");
-                    @SuppressWarnings("unchecked")
-                    List<GUIPlugin> guiPlugins = (List<GUIPlugin>) engine.getPluginProperty("GUI", "PluginList");
-
-                    AboutDialog dialog = new AboutDialog(
-                            framework.getMainFrame(), corePlugins, guiPlugins);
-                    dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+                    AboutDialog dialog = new AboutDialog(framework.getMainFrame());
                     dialog.setVisible(true);
                     dialog.dispose();
                 });

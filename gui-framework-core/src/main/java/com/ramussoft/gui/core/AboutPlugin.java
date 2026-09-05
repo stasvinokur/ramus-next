@@ -1,32 +1,22 @@
 package com.ramussoft.gui.core;
 
 import java.awt.event.ActionEvent;
-import java.util.List;
 
 import javax.swing.AbstractAction;
-import javax.swing.JDialog;
 
-import com.ramussoft.common.Engine;
-import com.ramussoft.common.Plugin;
 import com.ramussoft.gui.common.AbstractViewPlugin;
 import com.ramussoft.gui.common.ActionDescriptor;
 import com.ramussoft.gui.common.ActionLevel;
-import com.ramussoft.gui.common.GUIPlugin;
 
 /**
  * Contributes the single item left on the Help menu.
  *
  * <p>The menu used to hold "Help Contents" above it, bound to F1, which opened a JavaHelp window
- * over a help set nobody had maintained. Both the action and the {@code openHelp} method that
- * built the {@code HelpSet} are gone, and with them this module's only use of {@code javax.help}.
+ * over a help set nobody had maintained. That went, and with it this class's reason to hold an
+ * Engine: the only thing it was ever used for was fetching the two plugin lists that filled the
+ * About dialog's tables, and the dialog no longer has tables.
  */
 public class AboutPlugin extends AbstractViewPlugin {
-
-    private Engine engine;
-
-    public AboutPlugin(Engine engine) {
-        this.engine = engine;
-    }
 
     @Override
     public String getName() {
@@ -49,14 +39,9 @@ public class AboutPlugin extends AbstractViewPlugin {
                 putValue(ACTION_COMMAND_KEY, "About");
             }
 
-            @SuppressWarnings("unchecked")
             @Override
             public void actionPerformed(ActionEvent e) {
-                AboutDialog dialog = new AboutDialog(framework.getMainFrame(),
-                        (List<Plugin>) engine.getPluginProperty("Core",
-                                "PluginList"), (List<GUIPlugin>) engine
-                        .getPluginProperty("GUI", "PluginList"));
-                dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+                AboutDialog dialog = new AboutDialog(framework.getMainFrame());
                 dialog.setVisible(true);
                 dialog.dispose();
             }

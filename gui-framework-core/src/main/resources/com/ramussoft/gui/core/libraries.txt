@@ -1,3 +1,8 @@
+This file has no reader. It is kept and shipped inside the jar on purpose: the MIT
+licence asks that its notice accompany the software, not that the software display
+it, and the About panel no longer has a place to show it. Do not delete it as an
+unreferenced resource.
+
 Ramus Next uses additional libraries:
 
 jericho-html.jar - Jericho HTML Parser (http://jerichohtml.sourceforge.net/) released under GNU Lesser General Public License (LGPL) (http://www.gnu.org/licenses/lgpl.html)
