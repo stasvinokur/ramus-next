@@ -55,6 +55,37 @@ public final class Icons {
      * A missing path is reported once on stderr rather than silently becoming a blank.
      */
     public static Icon get(final String path) {
+        return lookup(path);
+    }
+
+    /**
+     * The same icon, typed as {@link ImageIcon}.
+     *
+     * <p>Only for the few places whose API demands that concrete type - the tree tables take
+     * {@code setLeafIcon(ImageIcon)}, and the user's own element icons are built from raw
+     * bytes. Everywhere else should use {@link #get}, which is deliberately free to return
+     * something that is not a bitmap.
+     *
+     * <p>Whatever {@link #get} renders, these call sites always end up with a bitmap: if the
+     * shared icon is not one, a raster is loaded for them separately rather than handing back
+     * null. A null icon is a legal thing to give a Swing component, so getting that wrong
+     * would blank these out with nothing in the log.
+     */
+    public static ImageIcon image(final String path) {
+        Icon icon = lookup(path);
+        if (icon instanceof ImageIcon)
+            return (ImageIcon) icon;
+        return raster(path);
+    }
+
+    /**
+     * Shared by both accessors, which is the point: the previous version had {@code image}
+     * read the cache but never write to it, so a path only ever asked for through it was
+     * decoded again on every call - and both {@code RowTreeTable} and {@code QualifierTable}
+     * ask from a field initialiser, i.e. once per table. It also skipped the trace, so those
+     * paths were missing from the very measurement this class exists to make.
+     */
+    private static Icon lookup(final String path) {
         if (REQUESTED.add(path) && TRACE_FILE != null)
             trace(path);
         Icon cached = CACHE.get(path);
@@ -66,34 +97,11 @@ public final class Icons {
         return loaded;
     }
 
-    /**
-     * The same icon, typed as {@link ImageIcon}.
-     *
-     * <p>Only for the few places whose API demands that concrete type - the tree tables take
-     * {@code setLeafIcon(ImageIcon)}, and the user's own element icons are built from raw
-     * bytes. Everywhere else should use {@link #get}, which is deliberately free to return
-     * something that is not a bitmap.
-     *
-     * <p>Note that this loads the bitmap itself rather than asking {@link #get} and casting.
-     * That distinction is the whole reason the method exists: the moment {@code get} starts
-     * returning a vector icon, a cast would fail and these call sites would blank out - and
-     * blank out silently, because a null icon is a legal thing to hand a Swing component.
-     * Whatever the rest of the application renders, these paths always get a raster.
-     */
-    public static ImageIcon image(final String path) {
-        REQUESTED.add(path);
-        Icon cached = CACHE.get(path);
-        if (cached instanceof ImageIcon)
-            return (ImageIcon) cached;
-        URL url = Icons.class.getResource(path);
-        if (url == null) {
-            System.err.println("Icon not found on the classpath: " + path);
-            return null;
-        }
-        return new ImageIcon(url);
+    private static Icon load(final String path) {
+        return raster(path);
     }
 
-    private static Icon load(final String path) {
+    private static ImageIcon raster(final String path) {
         URL url = Icons.class.getResource(path);
         if (url == null) {
             System.err.println("Icon not found on the classpath: " + path);
