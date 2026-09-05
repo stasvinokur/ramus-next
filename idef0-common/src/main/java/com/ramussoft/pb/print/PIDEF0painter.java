@@ -235,7 +235,8 @@ public class PIDEF0painter {
      * Медод записує малюнок у вихінжний потік.
      *
      * @param stream Потік, в який буде переданий малюнок.
-     * @param format Формат малюнка (BMP_FORMAT, PNG_FORMAT, JPEG_FORMAT).
+     * @param format Формат малюнка: BMP_FORMAT, PNG_FORMAT, JPEG_FORMAT, SVG_FORMAT
+     *               або EMF_FORMAT. Інше значення - IllegalArgumentException.
      * @throws IOException Само собою зрозуміло :).
      */
 
@@ -257,6 +258,13 @@ public class PIDEF0painter {
             case EMF_FORMAT:
                 writeEMF(stream);
                 break;
+            default:
+                // There was no default here, so an unrecognised format made this method do
+                // nothing and return normally. The caller then closed a zero-byte file with
+                // a perfectly plausible extension, and the interface reported success. That
+                // is what made the caller passing a combo box index rather than a constant
+                // dangerous rather than merely untidy.
+                throw new IllegalArgumentException("Unknown image format: " + format);
         }
 
     }

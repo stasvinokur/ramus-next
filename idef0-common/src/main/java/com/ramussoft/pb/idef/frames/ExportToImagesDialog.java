@@ -12,7 +12,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.MessageFormat;
-import java.util.StringTokenizer;
 
 import javax.swing.AbstractAction;
 import javax.swing.JButton;
@@ -41,6 +40,95 @@ import com.ramussoft.pb.print.PIDEF0painter;
 public class ExportToImagesDialog extends BaseDialog {
 
     private static final String LAST_IMG_EXPORT_DIRECTORY = "LAST_IMG_EXPORT_DIRECTORY";
+
+    /**
+     * A combo item that carries the value it stands for.
+     *
+     * <p>The format used to be the item's POSITION in the list: the dialog passed
+     * {@code imageTypeComboBox.getSelectedIndex()} straight to
+     * {@link PIDEF0painter#writeToStream} as the format constant, and that worked only
+     * because .bmp/.png/.jpg/.svg/.emf happened to be listed in the same order as
+     * BMP_FORMAT through EMF_FORMAT. The order was written down in three separate places -
+     * the item list, the default selection, and the constants - and two lines apart the
+     * same combo was read a second time, by item text, to build the file extension.
+     * Inserting one item would have silently changed what every export wrote.
+     */
+    private static final class ImageType {
+
+        private final String extension;
+
+        private final int format;
+
+        ImageType(String extension, int format) {
+            this.extension = extension;
+            this.format = format;
+        }
+
+        String getExtension() {
+            return extension;
+        }
+
+        int getFormat() {
+            return format;
+        }
+
+        @Override
+        public String toString() {
+            return extension;
+        }
+    }
+
+    /**
+     * The offered image sizes. These numbers are the ones the dialog has always actually
+     * produced; the labels are now derived from them rather than typed separately, because
+     * they used to disagree - the item reading 904x601 wrote an image of 905x700, which is
+     * not a rounding difference but a different shape. The pixel sizes are deliberately
+     * unchanged, so nobody's exports move.
+     */
+    private static final class ImageSize {
+
+        private final int width;
+
+        private final int height;
+
+        ImageSize(int width, int height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        Dimension toDimension() {
+            return new Dimension(width, height);
+        }
+
+        @Override
+        public String toString() {
+            return width + "x" + height;
+        }
+    }
+
+    private static final ImageType[] IMAGE_TYPES = {
+            new ImageType(".bmp", PIDEF0painter.BMP_FORMAT),
+            new ImageType(".png", PIDEF0painter.PNG_FORMAT),
+            new ImageType(".jpg", PIDEF0painter.JPEG_FORMAT),
+            new ImageType(".svg", PIDEF0painter.SVG_FORMAT),
+            new ImageType(".emf", PIDEF0painter.EMF_FORMAT),
+    };
+
+    private static final ImageSize[] IMAGE_SIZES = {
+            new ImageSize(800, 535),
+            new ImageSize(905, 700),
+            new ImageSize(1024, 768),
+            new ImageSize(1152, 864),
+            new ImageSize(1300, 1000),
+            new ImageSize(1601, 1200),
+    };
+
+    private static ImageType imageType(int format) {
+        for (ImageType type : IMAGE_TYPES)
+            if (type.getFormat() == format)
+                return type;
+        throw new IllegalArgumentException("No image type for format " + format);
+    }
 
     private DataPlugin dataPlugin;
 
@@ -84,21 +172,11 @@ public class ExportToImagesDialog extends BaseDialog {
 
         JPanel panel = new JPanel(new TableLayout(size));
 
-        imageSizeComboBox = new JComboBox();
-        imageSizeComboBox.addItem("799x530");
-        imageSizeComboBox.addItem("904x601");
-        imageSizeComboBox.addItem("1023x680");
-        imageSizeComboBox.addItem("1151x765");
-        imageSizeComboBox.addItem("1299x864");
-        imageSizeComboBox.addItem("1600x1064");
+        imageSizeComboBox = new JComboBox(IMAGE_SIZES);
 
-        imageTypeComboBox = new JComboBox();
-        imageTypeComboBox.addItem(".bmp");
-        imageTypeComboBox.addItem(".png");
-        imageTypeComboBox.addItem(".jpg");
-        imageTypeComboBox.addItem(".svg");
-        imageTypeComboBox.addItem(".emf");
-        imageTypeComboBox.setSelectedIndex(1);
+        imageTypeComboBox = new JComboBox(IMAGE_TYPES);
+        // By value, not by position: the default used to be a bare setSelectedIndex(1).
+        imageTypeComboBox.setSelectedItem(imageType(PIDEF0painter.PNG_FORMAT));
 
         panel.add(new JLabel(ResourceLoader.getString("ImageSize")), "1,1");
         panel.add(imageSizeComboBox, "3,1,5,1");
@@ -208,41 +286,18 @@ public class ExportToImagesDialog extends BaseDialog {
 
     protected void exportToFile(File dir, Function f, String prefix)
             throws FileNotFoundException, IOException {
-        String size = null;
-        switch (imageSizeComboBox.getSelectedIndex()) {
-            case 0:
-                size = "800x535";
-                break;
-            case 1:
-                size = "905x700";
-                break;
-            case 2:
-                size = "1024x768";
-                break;
-            case 3:
-                size = "1152x864";
-                break;
-            case 4:
-                size = "1300x1000";
-                break;
-            case 5:
-                size = "1601x1200";
-                break;
+        // One read of each combo, and the extension and the format now come from the same
+        // object rather than from the item text and the item position respectively.
+        ImageSize size = (ImageSize) imageSizeComboBox.getSelectedItem();
+        ImageType type = (ImageType) imageTypeComboBox.getSelectedItem();
 
-        }
-
-        StringTokenizer st = new StringTokenizer(size, "x");
-
-        int width = Integer.valueOf(st.nextToken());
-        int height = Integer.valueOf(st.nextToken());
-
-        PIDEF0painter painter = new PIDEF0painter(f, new Dimension(width,
-                height), dataPlugin);
+        PIDEF0painter painter = new PIDEF0painter(f, size.toDimension(),
+                dataPlugin);
         File file = new File(dir, prefix + MovingFunction.getIDEF0Kod((com.ramussoft.database.common.Row) f)
-                + imageTypeComboBox.getSelectedItem().toString());
-        FileOutputStream stream = new FileOutputStream(file);
-        painter.writeToStream(stream, imageTypeComboBox.getSelectedIndex());
-        stream.close();
+                + type.getExtension());
+        try (FileOutputStream stream = new FileOutputStream(file)) {
+            painter.writeToStream(stream, type.getFormat());
+        }
     }
 
     @Override
