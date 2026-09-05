@@ -13,6 +13,8 @@ import javax.swing.JOptionPane;
 import javax.swing.UIManager;
 import javax.swing.filechooser.FileFilter;
 
+import org.apache.poi.UnsupportedFileFormatException;
+
 import com.ramussoft.common.Qualifier;
 import com.ramussoft.gui.common.GlobalResourcesManager;
 import com.ramussoft.gui.qualifier.table.AbstractElementActionPlugin;
@@ -151,7 +153,21 @@ public class ExcelPlugin extends AbstractElementActionPlugin {
                         .getComponent().getRowSet(), ExcelPlugin.this);
                 try {
                     importer.importFromFile(chooser.getSelectedFile());
-                } catch (IOException e1) {
+                } catch (UnsupportedFileFormatException e1) {
+                    // The one failure a user can actually cause and act on. POI raises it
+                    // for an .xlsx, which the chooser does not hide: the *.xls filter is
+                    // there, but "All files" stays selectable. It is an
+                    // IllegalArgumentException underneath, so the IOException catch never
+                    // saw it - the import died on the event thread, and since this
+                    // application installs no uncaught-exception handler, a packaged build
+                    // showed the user nothing whatsoever.
+                    e1.printStackTrace();
+                    JOptionPane.showMessageDialog(framework.getMainFrame(),
+                            getString("UnsupportedFileFormat"));
+                } catch (Exception e1) {
+                    // Everything else, by the idiom the rest of the project uses. Not
+                    // IOException alone: whatever POI throws about a malformed file, the
+                    // user has to hear about it rather than read stderr.
                     e1.printStackTrace();
                     JOptionPane.showMessageDialog(framework.getMainFrame(), e1
                             .getLocalizedMessage());

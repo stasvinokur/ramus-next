@@ -24,6 +24,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 
 import com.ramussoft.common.Attribute;
 import com.ramussoft.common.Qualifier;
+import com.ramussoft.common.journal.Journaled;
 import com.ramussoft.core.attribute.standard.StandardAttributesPlugin;
 import com.ramussoft.database.common.RowSet;
 import com.ramussoft.gui.common.BaseDialog;
@@ -57,15 +58,36 @@ public class Importer {
         this.plugin = plugin;
     }
 
+    /**
+     * RowSet exposes start and commit but no rollback, so this goes through Journaled the
+     * way the other eight rollback sites in the project do - see the IDL import in
+     * IDEF0ViewPlugin, which is the same shape as this one: a file the user chose, a format
+     * that may not be the expected one, and a transaction that must not be left half applied.
+     */
+    private void rollback() {
+        Object engine = rowSet.getEngine();
+        if (engine instanceof Journaled)
+            ((Journaled) engine).rollbackUserTransaction();
+        else
+            rowSet.commitUserTransaction();
+    }
+
     @SuppressWarnings("unchecked")
     public void importFromFile(File file) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(file);
-        final Workbook workbook = new HSSFWorkbook(fileInputStream);
-        fileInputStream.close();
+        final Workbook workbook;
+        // try-with-resources: the close() used to sit after the constructor, so it was
+        // skipped on exactly the input that makes the constructor throw - a file that is
+        // not an .xls.
+        try (FileInputStream fileInputStream = new FileInputStream(file)) {
+            workbook = new HSSFWorkbook(fileInputStream);
+        }
         int sheetCount = workbook.getNumberOfSheets();
         if (sheetCount == 0) {
             JOptionPane.showMessageDialog(framework.getMainFrame(), plugin
                     .getString("NoSheetsAreFound"));
+            // The message used to be advice rather than a decision: the method carried on
+            // and put up an import dialog with no tabs in it.
+            return;
         }
 
         boxes = new ArrayList[sheetCount];
@@ -129,9 +151,19 @@ public class Importer {
                                 .getSheetName(index), startFrom, rules
                                 .toArray(new ImportRule[rules.size()]));
                     }
-
-                } finally {
                     rowSet.commitUserTransaction();
+                } catch (Exception e) {
+                    // The commit used to be in a finally with no catch anywhere near it, so
+                    // a failure part way through committed whatever rows had already been
+                    // created - a half-imported catalogue, silently, in the user's model -
+                    // and then threw on the event thread, where nothing reports it.
+                    rollback();
+                    e.printStackTrace();
+                    JOptionPane.showMessageDialog(framework.getMainFrame(), e
+                            .getLocalizedMessage());
+                    // Deliberately not closing: the column mapping the user just set up is
+                    // in this dialog, and throwing it away on a failed attempt is unkind.
+                    return;
                 }
                 super.onOk();
             }
