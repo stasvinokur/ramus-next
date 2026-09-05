@@ -80,21 +80,6 @@ public class PIDEF0painter {
     }
 
     public static MovingArea createMovingArea(final Dimension d,
-                                              final DataPlugin dataPlugin) {
-        final MovingArea movingArea = new MovingArea(dataPlugin);
-        final double zh = (double) d.height
-                / (double) movingArea.MOVING_AREA_HEIGHT;
-        final double zw = (double) d.width
-                / (double) movingArea.MOVING_AREA_WIDTH;
-        final double zoom = zw < zh ? zw : zh;
-        movingArea.setZoom(zoom);
-        movingArea.setSize(
-                movingArea.getIntOrdinate(movingArea.MOVING_AREA_WIDTH),
-                movingArea.getIntOrdinate(movingArea.CLIENT_HEIGHT));
-        return movingArea;
-    }
-
-    public static MovingArea createMovingArea(final Dimension d,
                                               final DataPlugin dataPlugin, Function activeFunction) {
         final MovingArea movingArea = new MovingArea(dataPlugin, activeFunction);
         final double zh = (double) d.height
