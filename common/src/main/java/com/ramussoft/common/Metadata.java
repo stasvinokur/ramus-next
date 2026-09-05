@@ -4,7 +4,7 @@ public class Metadata {
 
     private static final String APPLICATION_NAME = "Ramus Next";
 
-    private static final String APPLICATION_VERSION = "2.0.2";
+    private static final String APPLICATION_VERSION = "3.0.0";
 
     private static final String FILE_PREFERED_MINIMUM_VERSION = "2.0";
 

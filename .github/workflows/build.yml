@@ -251,6 +251,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The release body comes from CHANGELOG.md, so this job needs the repository. It is the
+      # only reason to check out here - nothing is built.
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -270,10 +274,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # The body is CHANGELOG.md and nothing else. --generate-notes used to be here, but
+          # this project commits straight to main and opens no pull requests, so it produces a
+          # list of every commit subject since the previous tag - and for the first release
+          # there is no previous tag, so that is the entire history.
           gh release create "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
             --title "${{ github.ref_name }}" \
-            --generate-notes \
+            --notes-file CHANGELOG.md \
             artifacts/RamusNext-arm64.dmg \
             artifacts/RamusNext-x86_64.dmg \
             artifacts/RamusNext-x64.msi

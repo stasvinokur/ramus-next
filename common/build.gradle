@@ -5,3 +5,11 @@ plugins {
 dependencies {
     testImplementation 'junit:junit:4.13.2'
 }
+
+tasks.named('test') {
+    useJUnit()
+    // MetadataVersionTest reads gradle.properties off disk to compare it against Metadata.
+    // Without declaring it, editing only that file leaves the task up to date and the guard
+    // never runs - which is exactly the drift it exists to catch.
+    inputs.file(rootProject.file('gradle.properties'))
+}
