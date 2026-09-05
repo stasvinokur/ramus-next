@@ -104,70 +104,48 @@ public class MemoryDatabase extends AbstractDatabase {
         AdditionalPluginLoader.loadAdditionalSuits(suits);
     }
 
+    /**
+     * Applies one schema script, reporting rather than swallowing a failure.
+     *
+     * A failure here is not necessarily fatal: the incremental update*.sql scripts
+     * legitimately fail when the change they carry is already present. But it must
+     * not be invisible either. JDBCTemplate hands the whole file to a single
+     * Statement.execute(), so one rejected statement silently abandons every
+     * statement after it in that script - which is exactly how a driver upgrade can
+     * leave the application running against half a schema with nothing in the log.
+     */
+    private static void applySchema(JDBCTemplate template, String resource,
+                                    String prefix) {
+        try {
+            if (prefix == null)
+                template.executeResource(resource);
+            else
+                template.executeResource(resource, prefix);
+        } catch (Exception e) {
+            System.err.println("Schema script " + resource
+                    + " did not apply cleanly: " + e);
+        }
+    }
+
     public static JDBCTemplate createStaticTemplate(Connection connection)
             throws SQLException {
         JDBCTemplate template = new JDBCTemplate(connection);
 
-        try {
-            template.executeResource("/com/ramussoft/jdbc/database.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
-        try {
-            template.executeResource("/com/ramussoft/jdbc/update1.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
-        try {
-            template.executeResource("/com/ramussoft/jdbc/update2.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
-
-        try {
-            template.executeResource("/com/ramussoft/jdbc/update3.sql");
-
-        } catch (Exception e) {
-        }
-        try {
-            template.executeResource("/com/ramussoft/jdbc/update4.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
+        applySchema(template, "/com/ramussoft/jdbc/database.sql", "ramus_");
+        applySchema(template, "/com/ramussoft/jdbc/update1.sql", "ramus_");
+        applySchema(template, "/com/ramussoft/jdbc/update2.sql", "ramus_");
+        applySchema(template, "/com/ramussoft/jdbc/update3.sql", null);
+        applySchema(template, "/com/ramussoft/jdbc/update4.sql", "ramus_");
         return template;
     }
 
     public JDBCTemplate createTemplate() throws SQLException {
         JDBCTemplate template = new JDBCTemplate(createConnection());
 
-        try {
-            template.executeResource("/com/ramussoft/jdbc/database.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
-        try {
-            template.executeResource("/com/ramussoft/jdbc/update1.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
-        try {
-            template.executeResource("/com/ramussoft/jdbc/update2.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
-        try {
-            template.executeResource("/com/ramussoft/jdbc/update4.sql",
-                    "ramus_");
-
-        } catch (Exception e) {
-        }
+        applySchema(template, "/com/ramussoft/jdbc/database.sql", "ramus_");
+        applySchema(template, "/com/ramussoft/jdbc/update1.sql", "ramus_");
+        applySchema(template, "/com/ramussoft/jdbc/update2.sql", "ramus_");
+        applySchema(template, "/com/ramussoft/jdbc/update4.sql", "ramus_");
         return template;
     }
 
