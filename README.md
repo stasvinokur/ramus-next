@@ -16,9 +16,9 @@ Ramus Next continues [Ramus](https://ramussoftware.com/), created by Vitaliy Yak
 
 ### Step 1: Install JDK
 
-Install a **full JDK in the 17-21 range** (not a JRE). [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21) is the recommended build.
+Install any JDK **21 or newer**. [Eclipse Temurin 21](https://adoptium.net/temurin/releases/?version=21) is a good default, but the build is not fussy: Gradle runs on whatever JDK it finds, and the JDK that actually compiles the code is provisioned automatically.
 
-> JDK 22 and newer will not work. The Gradle 8.5 wrapper only runs on Java 21 and below, and from JDK 23 onward `:report-core:compileJava` fails outright because `Thread.stop()` was removed from the JDK (`JSSPReportEngine.java:99`, `JSSPDocBookReportEngine.java:81`).
+> The build no longer depends on which JDK you happen to have. A Gradle toolchain pins compilation to Java 21 and `options.release = 17` pins the bytecode and the visible API to Java 17, so the output is identical regardless of the JVM Gradle runs on. If the toolchain JDK is missing, Gradle downloads it.
 
 ### Step 2: Run the Application
 
@@ -82,7 +82,7 @@ Download: the latest macOS DMG is available in this repository's GitHub Releases
 ## Requirements (macOS)
 
 - macOS with developer tools (preinstalled utilities: `sips`, `iconutil`).
-- A full JDK in the **17-21** range with `jdeps`, `jlink`, and `jpackage` (not a JRE). Temurin 21 is recommended; JDK 22+ is unsupported, see Step 1 above.
+- Any JDK **21 or newer** (not a JRE). The JDK used for packaging - it supplies `jdeps`, `jlink` and `jpackage`, and becomes the runtime inside the DMG - is resolved through a Gradle toolchain and downloaded if absent.
 - Nothing else: the icon sources under `packaging/macos/AppIcon.appiconset` are plain PNGs converted by `sips`.
 
 Tip: This project supports local overrides without changing your shell’s `JAVA_HOME`.
@@ -126,7 +126,15 @@ packagingJavaHome=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
 # packagingJmodsPath=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/jmods
 ```
 
-Alternatively, you can set `org.gradle.java.home` in `gradle.properties` (also ignored by git) if you want Gradle itself to run on a particular JDK.
+`gradle.properties` in the repository root holds the three JDK settings, which are deliberately separate:
+
+| Property | Meaning |
+|---|---|
+| `javaToolchainVersion` | which JDK runs `javac` |
+| `javaRelease` | the bytecode level and the JDK API `javac` is allowed to see |
+| `packagingJdkVersion` | supplies `jdeps`/`jlink`/`jpackage`, and is the runtime bundled into the installer |
+
+Only the last one is visible to users. Override any of them with `-P` on the command line.
 
 ## Build Tasks Summary
 
