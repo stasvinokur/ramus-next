@@ -173,8 +173,6 @@ public class MainFrame implements ActionListener {
 
     public static final String RELOAD_SAVE = "reload_save"; // @jve:decl-index=0:
 
-    public static final String CONTEXT = "help.help";
-
     public static final String EXPORT_REPORT_TO_HTML = "export_to_html";
 
     public static final String PROGRAM_OPTIONS = "program_options";
@@ -277,8 +275,6 @@ public class MainFrame implements ActionListener {
 
     private ViewPanel activeView = null;
 
-    private final Helper helper = new Helper(getHSName());
-
     private final Group workspaceGroup = new Group(); // @jve:decl-index=0:
 
     private final ButtonGroup idef0StateGroup = new ButtonGroup(); // @jve:decl-index=0:
@@ -345,10 +341,6 @@ public class MainFrame implements ActionListener {
         return ".rsf";
     }
 
-    protected String getHSName() {
-        return "BuilderHelp.hs";
-    }
-
     public JFileChooser getChooser() {
         if (chooser == null) {
             chooser = new JFileChooser();
@@ -377,7 +369,7 @@ public class MainFrame implements ActionListener {
 
         final String[] b = new String[]{NEW_PROJECT, OPEN_PROJECT,
                 SAVE_PROJECT, SAVE_PROJECT_AS, EXIT, OPEN_WEB_SERVER,
-                PROJECT_OPTIONS, RUN_JS_SCRIPT, CONTEXT, PROGRAM_OPTIONS,
+                PROJECT_OPTIONS, RUN_JS_SCRIPT, PROGRAM_OPTIONS,
                 SHOW_STREAMS, USER_TEMPLATES};
 
         final Vector<String> s = new Vector<String>();
@@ -701,12 +693,6 @@ public class MainFrame implements ActionListener {
         createAction(EXPORT_REPORT_TO_XML,
                 ResourceLoader.getString(EXPORT_REPORT_TO_XML),
                 ResourceLoader.getString(EXPORT_REPORT_TO_XML), Icons.get("/images/export.png"), null);
-
-        // -------------help------------
-
-        createAction(CONTEXT, ResourceLoader.getString(CONTEXT),
-                ResourceLoader.getString(CONTEXT), null,
-                KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
     }
 
     public void createAction(final String name) {
@@ -1124,8 +1110,6 @@ public class MainFrame implements ActionListener {
         final String cmd = e.getActionCommand();
         if (EXIT.equals(cmd))
             exit();
-        else if (CONTEXT.equals(cmd))
-            helper.showHelpContext(e);
         else if (PROGRAM_OPTIONS.equals(cmd))
             getViewOptions().showModal();
         else if (USER_TEMPLATES.equals(cmd)) {
@@ -1185,7 +1169,6 @@ public class MainFrame implements ActionListener {
             jJMenuBar.add(getJMenuTools());
             jJMenuBar.add(getJMenuWindows());
             jJMenuBar.add(new JPanel());
-            jJMenuBar.add(getJMenuHelp());
             MnemonicFactory.setMnemonics(jJMenuBar);
         }
         return jJMenuBar;
@@ -1625,10 +1608,6 @@ public class MainFrame implements ActionListener {
         return windows;
     }
 
-    protected JMenu jMenuHelp = null;
-
-    private JMenuItem jMenuItemContext = null;
-
     private JPopupMenu jPopupMenuRows = null;
 
     private JMenu jMenu5 = null;
@@ -1676,33 +1655,6 @@ public class MainFrame implements ActionListener {
     protected JMenu jMenuExport = null;
 
     protected JMenu jMenuImport = null;
-
-    /**
-     * This method initializes jMenuHelp
-     *
-     * @return javax.swing.JMenu
-     */
-    protected JMenu getJMenuHelp() {
-        if (jMenuHelp == null) {
-            jMenuHelp = new JMenu();
-            jMenuHelp.setText(ResourceLoader.getString("help"));
-            jMenuHelp.add(getJMenuItemContext());
-        }
-        return jMenuHelp;
-    }
-
-    /**
-     * This method initializes jMenuItemContext
-     *
-     * @return javax.swing.JMenuItem
-     */
-    protected JMenuItem getJMenuItemContext() {
-        if (jMenuItemContext == null) {
-            jMenuItemContext = new JMenuItem();
-            jMenuItemContext.setAction(findAction(CONTEXT));
-        }
-        return jMenuItemContext;
-    }
 
     /**
      * This method initializes jPopupMenuRows
