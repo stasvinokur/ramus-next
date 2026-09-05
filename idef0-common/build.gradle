@@ -33,7 +33,6 @@ dependencies {
     implementation('org.apache.xmlgraphics:batik-dom:1.19') {
         exclude group: 'xml-apis', module: 'xml-apis'
     }
-    implementation 'javax.help:javahelp:2.0.05'
     implementation project(':common')
     implementation project(':core')
     implementation project(':report-core')
