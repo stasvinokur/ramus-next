@@ -333,6 +333,11 @@ def staticJpackageArgs = [
         '--mac-package-identifier', 'com.stasvinokur.ramusnext',
         '--mac-package-name', appDisplayName,
         '--java-options', '-Dapple.laf.useScreenMenuBar=true',
+        // POI 5 brings log4j-api with no implementation, so the first Excel operation
+        // prints "Log4j API could not find a logging provider" to stderr. Point it at the
+        // built-in simple logger instead. No spaces in the value, which matters here: see
+        // the note below about how jpackage splits --java-options.
+        '--java-options', '-Dlog4j2.loggerContextFactory=org.apache.logging.log4j.simple.SimpleLoggerContextFactory',
 ]
 // Deliberately NOT passing -Dapple.awt.application.name: jpackage splits every --java-options
 // value on whitespace when it writes the .cfg, so a name containing a space becomes two

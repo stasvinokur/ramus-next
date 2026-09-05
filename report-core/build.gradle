@@ -8,6 +8,6 @@ dependencies {
     implementation project(':common')
     implementation project(':core')
     implementation project(':core-simple-attributes')
-    implementation 'net.htmlparser.jericho:jericho-html:3.3'
+    implementation 'net.htmlparser.jericho:jericho-html:3.4'
     testImplementation 'junit:junit:4.13.2'
 }

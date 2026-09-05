@@ -13,6 +13,6 @@ dependencies {
     implementation project(':chart-core')
     implementation 'tablelayout:TableLayout:20050920'
     implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
-    implementation 'org.jfree:jfreechart:1.0.19'
+    implementation 'org.jfree:jfreechart:1.5.6'
     testImplementation 'junit:junit:4.13.2'
 }

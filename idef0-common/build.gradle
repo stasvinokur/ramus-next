@@ -43,7 +43,7 @@ dependencies {
     implementation project(':data-framework-common')
     implementation files('../gui-qualifier/libs/my-spell-core.jar')
     implementation files('../gui-qualifier/libs/my-spell-swing.jar')
-    implementation 'net.htmlparser.jericho:jericho-html:3.3'
+    implementation 'net.htmlparser.jericho:jericho-html:3.4'
     implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
     implementation 'tablelayout:TableLayout:20050920'
     testImplementation 'junit:junit:4.13.2'

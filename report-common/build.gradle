@@ -9,7 +9,7 @@ dependencies {
     implementation project(':data-framework-common')
     implementation project(':gui-framework-common')
     implementation 'org.swinglabs.swingx:swingx-all:1.6.5-1'
-    implementation 'net.htmlparser.jericho:jericho-html:3.3'
+    implementation 'net.htmlparser.jericho:jericho-html:3.4'
     implementation project(':report-core')
     implementation project(':gui-qualifier')
     implementation 'de.sciss:jsyntaxpane:1.0.0'

@@ -3,6 +3,8 @@ package com.ramussoft.excel;
 import java.util.Hashtable;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Sheet;
 
 import com.ramussoft.common.Attribute;
@@ -166,14 +168,17 @@ public class ComplexImport {
         } else {
             try {
                 EObject object = null;
-                if (cell.getCellType() == Cell.CELL_TYPE_STRING)
+                // POI 4 turned getCellType() into a CellType enum. The three NUMERIC
+                // branches below used to be identical, so the two date ones were
+                // unreachable and every date came through as a raw number; the date case
+                // is now selected properly with DateUtil.
+                CellType cellType = cell.getCellType();
+                if (cellType == CellType.STRING)
                     object = new EObject(cell.getStringCellValue());
-                else if (cell.getCellType() == Cell.CELL_TYPE_NUMERIC)
-                    object = new EObject(cell.getNumericCellValue());
-                else if (cell.getCellType() == Cell.CELL_TYPE_NUMERIC)
-                    object = new EObject(cell.getDateCellValue());
-                else if (cell.getCellType() == Cell.CELL_TYPE_NUMERIC)
-                    object = new EObject(cell.getDateCellValue());
+                else if (cellType == CellType.NUMERIC)
+                    object = DateUtil.isCellDateFormatted(cell)
+                            ? new EObject(cell.getDateCellValue())
+                            : new EObject(cell.getNumericCellValue());
                 if (object == null)
                     try {
                         object = new EObject(cell.getStringCellValue());

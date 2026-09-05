@@ -6,6 +6,6 @@ dependencies {
     implementation project(':common')
     implementation project(':core')
     implementation project(':core-simple-attributes')
-    implementation 'org.jfree:jfreechart:1.0.19'
+    implementation 'org.jfree:jfreechart:1.5.6'
     testImplementation 'junit:junit:4.13.2'
 }

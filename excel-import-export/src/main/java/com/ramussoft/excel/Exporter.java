@@ -8,7 +8,10 @@ import java.util.List;
 
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
@@ -35,18 +38,18 @@ public class Exporter {
         Workbook workbook = new HSSFWorkbook();
         CellStyle headerStyle;
         Font headerFont = workbook.createFont();
-        headerFont.setBoldweight(Font.BOLDWEIGHT_BOLD);
+        headerFont.setBold(true);
         headerStyle = createBorderedStyle(workbook);
-        headerStyle.setAlignment(CellStyle.ALIGN_CENTER);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
         headerStyle.setFillForegroundColor(IndexedColors.LIGHT_CORNFLOWER_BLUE
                 .getIndex());
-        headerStyle.setFillPattern(CellStyle.SOLID_FOREGROUND);
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         headerStyle.setFont(headerFont);
 
         CellStyle normalStyle;
 
         normalStyle = createBorderedStyle(workbook);
-        normalStyle.setAlignment(CellStyle.ALIGN_LEFT);
+        normalStyle.setAlignment(HorizontalAlignment.LEFT);
         normalStyle.setWrapText(true);
 
         CellStyle dateStyle = createDateStyle(workbook);
@@ -122,13 +125,13 @@ public class Exporter {
 
     private static CellStyle createBorderedStyle(Workbook wb) {
         CellStyle style = wb.createCellStyle();
-        style.setBorderRight(CellStyle.BORDER_THIN);
+        style.setBorderRight(BorderStyle.THIN);
         style.setRightBorderColor(IndexedColors.BLACK.getIndex());
-        style.setBorderBottom(CellStyle.BORDER_THIN);
+        style.setBorderBottom(BorderStyle.THIN);
         style.setBottomBorderColor(IndexedColors.BLACK.getIndex());
-        style.setBorderLeft(CellStyle.BORDER_THIN);
+        style.setBorderLeft(BorderStyle.THIN);
         style.setLeftBorderColor(IndexedColors.BLACK.getIndex());
-        style.setBorderTop(CellStyle.BORDER_THIN);
+        style.setBorderTop(BorderStyle.THIN);
         style.setTopBorderColor(IndexedColors.BLACK.getIndex());
         return style;
     }
