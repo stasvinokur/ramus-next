@@ -964,7 +964,10 @@ public class MainFrame implements ActionListener {
         idef0StateToolBar = new JToolBar();
 
         idef0StateToolBar.setRollover(true);
-        idef0StateToolBar.setFloatable(true);
+        // Was true, so this bar grew a drag handle like the ones in PlugableFrame. It sits
+        // inside the docking frame's north strip, which is already short of room; dragging
+        // it out of there is not something anyone asked for.
+        idef0StateToolBar.setFloatable(false);
 
 		/*
 		 * idef0StateToolBar.add(findAction(IDEF0_UNDO)).setFocusable(false);

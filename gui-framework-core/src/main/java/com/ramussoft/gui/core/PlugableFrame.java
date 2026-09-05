@@ -315,6 +315,11 @@ public class PlugableFrame extends JFrame {
             Entry<String, Object> entry = (Entry<String, Object>) object;
             List<Action> list = (List) entry.getValue();
             JToolBar toolBar = new JToolBar();
+            // The grip that renders to the left of every bar - two vertical dots or dashes,
+            // depending on the theme - is not a separator, it is the handle for dragging a
+            // floatable toolbar out of the window. Ten other places in this project turn
+            // that off; these bars were simply missed.
+            toolBar.setFloatable(false);
             for (Action a : list) {
                 if (a == null)
                     toolBar.addSeparator();

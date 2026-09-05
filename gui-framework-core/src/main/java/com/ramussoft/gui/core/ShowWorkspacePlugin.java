@@ -186,10 +186,15 @@ public class ShowWorkspacePlugin extends AbstractViewPlugin {
             final Action action = descriptor.getAction();
             if (action instanceof ShowWorkspaceAction) {
                 JToggleButton button = new JToggleButton(action);
-                button.setText(cut((String) action
-                        .getValue(Action.ACTION_COMMAND_KEY)));
-                button.setToolTipText((String) action
-                        .getValue(Action.ACTION_COMMAND_KEY));
+                String name = (String) action.getValue(Action.ACTION_COMMAND_KEY);
+                // The full name. This used to go through cut(), which kept the first four
+                // characters and appended an ellipsis, so the switcher read "Cata...",
+                // "Proj...", "Diag...". It counted characters rather than pixels, so it
+                // truncated regardless of how much room the button actually had - and the
+                // action carries no NAME, so simply dropping the call would have left these
+                // buttons with nothing but a 16-pixel icon.
+                button.setText(name);
+                button.setToolTipText(name);
                 button.addActionListener(new java.awt.event.ActionListener() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
@@ -201,13 +206,6 @@ public class ShowWorkspacePlugin extends AbstractViewPlugin {
             }
         }
         factory.setNorthEastCornerComponent(workspaceToolBar);
-    }
-
-    private String cut(String value) {
-        if (value.length() > 6) {
-            value = value.substring(0, 4) + "...";
-        }
-        return value;
     }
 
     @Override
