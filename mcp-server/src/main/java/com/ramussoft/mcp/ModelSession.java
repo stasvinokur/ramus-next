@@ -294,6 +294,18 @@ public final class ModelSession implements AutoCloseable {
     }
 
     private void backup() throws IOException {
+        backupOf(file);
+    }
+
+    /**
+     * Copies a model beside itself, and says where the copy went.
+     *
+     * <p>
+     * Static and shared, because the same copy has to be taken from two places: before the
+     * first change of a session, and before a file is deliberately written over. One rule for
+     * both, or the second one grows its own and they disagree.
+     */
+    static File backupOf(File file) throws IOException {
         File copy = new File(file.getParentFile(), file.getName() + ".backup");
         // Never overwrite an existing backup: the first one is of the model as it was
         // before any agent touched it, and that is the one worth keeping.
@@ -301,6 +313,7 @@ public final class ModelSession implements AutoCloseable {
         while (copy.exists())
             copy = new File(file.getParentFile(), file.getName() + ".backup." + (n++));
         Files.copy(file.toPath(), copy.toPath(), StandardCopyOption.COPY_ATTRIBUTES);
+        return copy;
     }
 
     /**

@@ -307,7 +307,7 @@ public class DiagramBuilderTest {
                     plugin.getBaseFunction());
             Function a0 = context.addActivity("Работа", null, null);
             context.addArrow("Заявка", DiagramBuilder.End.frame(MovingPanel.LEFT),
-                    DiagramBuilder.End.on(a0, MovingPanel.LEFT), null, null, 8);
+                    DiagramBuilder.End.on(a0, MovingPanel.LEFT), null, null, 8, null);
             context.commit();
             session.save();
         }

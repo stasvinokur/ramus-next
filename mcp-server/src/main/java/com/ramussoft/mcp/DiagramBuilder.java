@@ -316,24 +316,26 @@ final class DiagramBuilder {
      * an activity or arrives at it, and the report keywords read exactly that.
      */
     void addArrow(String name, End from, End to) {
-        addArrow(name, from, to, null, null, null);
+        addArrow(name, from, to, null, null, null, null);
     }
 
     /**
-     * @param labelX   where to put the arrow's name, or null to place it automatically.
-     * @param fontSize the size to write the name in, or null for the usual one.
+     * @param labelX     where to put the arrow's name, or null to place it automatically.
+     * @param fontSize   the size to write the name in, or null for the usual one.
+     * @param labelWidth how wide the name may be laid out before it wraps, or null for the
+     *                   usual room.
      */
     void addArrow(String name, End from, End to, Double labelX, Double labelY,
-                  Integer fontSize) {
+                  Integer fontSize, Double labelWidth) {
         // An arrow that crosses the edge of the page may already be here, waiting: when a
         // parent diagram's arrow arrives at this activity, the model puts the other half of
         // it on this diagram as a stub with one end loose. Drawing a second one is what
         // leaves a diagram with each name on it twice, one of them connected to nothing.
         if (from.activity == null && to.activity != null
-                && connectStub(name, to, false, labelX, labelY, fontSize))
+                && connectStub(name, to, false, labelX, labelY, fontSize, labelWidth))
             return;
         if (to.activity == null && from.activity != null
-                && connectStub(name, from, true, labelX, labelY, fontSize))
+                && connectStub(name, from, true, labelX, labelY, fontSize, labelWidth))
             return;
 
         // Both anchors before either point: an arrow that ends at the frame leaves it level
@@ -357,7 +359,7 @@ final class DiagramBuilder {
         End box = from.activity == null ? to : from;
         double[] anchor = from.activity == null ? end : start;
         nameIt(created, box.activity, box.side, anchor == null ? 0 : (int) anchor[2],
-                from.activity != null, labelX, labelY, fontSize);
+                from.activity != null, labelX, labelY, fontSize, labelWidth);
     }
 
     /**
@@ -373,7 +375,8 @@ final class DiagramBuilder {
      * @param leaving whether the box is where the arrow starts rather than where it ends.
      */
     private boolean connectStub(String name, End box, boolean leaving,
-                                Double labelX, Double labelY, Integer fontSize) {
+                                Double labelX, Double labelY, Integer fontSize,
+                                Double labelWidth) {
         PaintSector stub = null;
         for (PaintSector paint : geometry.sectors()) {
             Sector sector = paint.getSector();
@@ -430,7 +433,7 @@ final class DiagramBuilder {
         PaintSector connected = paintedAs(stubbed);
         if (connected != null)
             nameIt(connected, box.activity, box.side, (int) anchor[2], leaving,
-                    labelX, labelY, fontSize);
+                    labelX, labelY, fontSize, labelWidth);
         return true;
     }
 
@@ -455,6 +458,24 @@ final class DiagramBuilder {
     private static final double MAX_LABEL_WIDTH = 200;
 
     /**
+     * How much room a name gets, as asked for or as usual.
+     *
+     * <p>
+     * The width is what decides where a name wraps, and the default suits most of them - but
+     * a long name beside a narrow lane of arrows wants to be narrow and tall, and a short one
+     * next to nothing wants to stay on one line whatever its length. Neither is something this
+     * code can work out; the caller can see the diagram.
+     */
+    private static double roomFor(Double labelWidth) {
+        if (labelWidth == null)
+            return MAX_LABEL_WIDTH;
+        if (labelWidth <= 0)
+            throw new IllegalArgumentException("A label needs a positive width to be laid out "
+                    + "in; " + labelWidth + " leaves it nowhere to go.");
+        return labelWidth;
+    }
+
+    /**
      * Gives an arrow its name: a label of its own, placed clear of the line, joined back to it
      * by the zig-zag the notation asks for.
      *
@@ -469,7 +490,8 @@ final class DiagramBuilder {
      * font it was computed for.
      */
     private void nameIt(PaintSector arrow, Function activity, int side, int slot,
-                        boolean leavesABox, Double labelX, Double labelY, Integer fontSize) {
+                        boolean leavesABox, Double labelX, Double labelY, Integer fontSize,
+                        Double labelWidth) {
         arrow.setFont(new Font(ARROW_FONT_FAMILY, Font.PLAIN,
                 fontSize == null ? ARROW_FONT_SIZE : fontSize));
         // Not saved by PaintSector.save and not by the path that creates a sector - that call
@@ -500,7 +522,7 @@ final class DiagramBuilder {
         // makes three arrows into one side of a box readable at all.
         area.stringBounder.setFont(arrow.getFont());
         Rectangle2D needed = area.stringBounder.getLinesBounds(label.getText(),
-                new Rectangle2D.Double(0, 0, MAX_LABEL_WIDTH, 0));
+                new Rectangle2D.Double(0, 0, roomFor(labelWidth), 0));
         FRectangle box = new FRectangle(0, 0, needed.getWidth(), needed.getHeight());
 
         // How far the name stands off its line. Far enough that the zig-zag reads as one and
@@ -705,7 +727,7 @@ final class DiagramBuilder {
         if (holder != null) {
             PaintSector owner = holder.getText() != null ? holder : ownerOfLabel(holder);
             if (owner != null)
-                nameIt(owner, box.activity, box.side, 1, false, null, null, null);
+                nameIt(owner, box.activity, box.side, 1, false, null, null, null, null);
         }
     }
 
@@ -867,7 +889,7 @@ final class DiagramBuilder {
      * and the size it is written in.
      */
     void setArrow(String name, String newName, Double labelX, Double labelY,
-                  Boolean tilde, Integer fontSize) {
+                  Boolean tilde, Integer fontSize, Double labelWidth) {
         PaintSector arrow = geometry.arrowNamed(name);
         if (arrow == null)
             throw new IllegalArgumentException("No arrow called \"" + name + "\" on this "
@@ -886,10 +908,11 @@ final class DiagramBuilder {
         // to move and the one to write.
         MovingLabel label = geometry.labelOf(arrow);
         PaintSector owner = arrow.getText() != null ? arrow : ownerOfLabel(arrow);
-        if (label != null && (labelX != null || labelY != null || fontSize != null)) {
+        if (label != null && (labelX != null || labelY != null || fontSize != null
+                || labelWidth != null)) {
             area.stringBounder.setFont(owner == null ? arrow.getFont() : owner.getFont());
             Rectangle2D needed = area.stringBounder.getLinesBounds(label.getText(),
-                    new Rectangle2D.Double(0, 0, MAX_LABEL_WIDTH, 0));
+                    new Rectangle2D.Double(0, 0, roomFor(labelWidth), 0));
             FRectangle was = label.getBounds();
             label.setBounds(new FRectangle(labelX == null ? was.getX() : labelX,
                     labelY == null ? was.getY() : labelY,

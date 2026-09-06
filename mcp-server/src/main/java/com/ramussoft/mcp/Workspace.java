@@ -74,12 +74,13 @@ final class Workspace {
      * Creates a model file that is worth having: an empty database plus one named model
      * inside it, so the very next call can look at its top activity.
      */
-    synchronized String create(File file, String modelName, int decompositionType)
-            throws IOException {
+    synchronized String create(File file, String modelName, int decompositionType,
+                               boolean overwrite) throws IOException {
         requireWritable("create a model");
-        if (file.exists())
-            throw new IllegalArgumentException(file + " already exists. Choose another path "
-                    + "or delete that one first.");
+        if (file.exists() && !overwrite)
+            throw new IllegalArgumentException(file + " already exists. Choose another path, "
+                    + "delete that one first, or pass overwrite to replace it - which keeps a "
+                    + "copy of what was there.");
         File parent = file.getParentFile();
         if (parent != null && !parent.isDirectory())
             throw new IllegalArgumentException(parent + " is not a directory.");

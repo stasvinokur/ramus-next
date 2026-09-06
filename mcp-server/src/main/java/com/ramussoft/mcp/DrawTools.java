@@ -89,7 +89,8 @@ final class DrawTools {
                         + "several diagrams - but on ONE diagram, use a branch rather than a "
                         + "second arrow of the same name. The name is placed clear of the "
                         + "line with a tilde; give label_x and label_y to put it somewhere "
-                        + "else. Held in memory until you call save.",
+                        + "else, and label_width to say how wide it may run before it wraps. "
+                        + "Held in memory until you call save.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"name\":{\"type\":\"string\",\"description\":\"What flows along "
                         + "the arrow - a noun phrase. For a branch, the name of the arrow "
@@ -115,6 +116,10 @@ final class DrawTools {
                         + "\"label_y\":{\"type\":\"number\"},"
                         + "\"font_size\":{\"type\":\"integer\",\"description\":\"Point size of "
                         + "the name. Default 10, which is what the drawn models use.\"},"
+                        + "\"label_width\":{\"type\":\"number\",\"description\":\"How wide "
+                        + "the name may run before it wraps onto another line, in diagram "
+                        + "units. Default 200. Narrow it where the arrows are close "
+                        + "together; widen it to keep a long name on one line.\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[\"name\",\"from\",\"to\"]}",
@@ -122,8 +127,9 @@ final class DrawTools {
 
         Tools.addTool(server, json, "set_arrow",
                 "Changes an arrow already drawn: renames it, moves its name, turns its tilde "
-                        + "- the zig-zag joining the name to the line - on or off, or changes "
-                        + "the size the name is written in. Only what you name is touched.",
+                        + "- the zig-zag joining the name to the line - on or off, changes "
+                        + "the size the name is written in, or the width it wraps at. Only "
+                        + "what you name is touched.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"name\":{\"type\":\"string\",\"description\":\"The arrow's "
                         + "name now.\"},"
@@ -136,6 +142,10 @@ final class DrawTools {
                         + "\"tilde\":{\"type\":\"boolean\",\"description\":\"Whether to draw "
                         + "the zig-zag from the name to the line.\"},"
                         + "\"font_size\":{\"type\":\"integer\"},"
+                        + "\"label_width\":{\"type\":\"number\",\"description\":\"How wide "
+                        + "the name may run before it wraps onto another line, in diagram "
+                        + "units. Default 200. Narrow it where the arrows are close "
+                        + "together; widen it to keep a long name on one line.\"},"
                         + "\"diagram\":{\"type\":\"integer\",\"description\":\""
                         + DiagramTools.SHEET + "\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
@@ -259,7 +269,8 @@ final class DrawTools {
         return inTransaction(session.getEngine(), () -> {
             DiagramBuilder builder = new DiagramBuilder(session, model, parent);
             builder.addArrow(name, start, finish, number(request, "label_x"),
-                    number(request, "label_y"), fontSize(request));
+                    number(request, "label_y"), fontSize(request),
+                    number(request, "label_width"));
             builder.commit();
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("added", name);
@@ -331,7 +342,7 @@ final class DrawTools {
             builder.setArrow(name, newName == null ? null : newName.toString(),
                     number(request, "label_x"), number(request, "label_y"),
                     tilde == null ? null : Boolean.valueOf(tilde.toString()),
-                    fontSize(request));
+                    fontSize(request), number(request, "label_width"));
             builder.commit();
             return Map.of("changed", newName == null ? name : newName.toString(),
                     "diagram", describe(parent));

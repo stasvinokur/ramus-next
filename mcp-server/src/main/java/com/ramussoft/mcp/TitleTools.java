@@ -14,8 +14,14 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import com.dsoft.pb.idef.elements.ProjectOptions;
 import com.dsoft.pb.idef.elements.Readed;
 import com.dsoft.pb.idef.elements.Status;
+import com.ramussoft.common.Attribute;
+import com.ramussoft.common.Element;
 import com.ramussoft.common.Engine;
 import com.ramussoft.common.Qualifier;
+import com.ramussoft.core.attribute.standard.StandardAttributesPlugin;
+import com.ramussoft.database.common.Row;
+import com.ramussoft.database.common.RowSet;
+import com.ramussoft.idef0.IDEF0Plugin;
 import com.ramussoft.common.journal.Journaled;
 import com.ramussoft.pb.DataPlugin;
 import com.ramussoft.pb.Function;
@@ -91,9 +97,83 @@ final class TitleTools {
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[]}",
                 (request) -> setDiagramInfo(workspace.current(), request));
+
+        Tools.addTool(server, json, "rename_model",
+                "Renames a model inside the open file - the name list_models reports and the "
+                        + "Models panel shows. This is the name of the model, not of the file "
+                        + "it lives in; use save_model_as to change that.",
+                "{\"type\":\"object\",\"properties\":{"
+                        + "\"name\":{\"type\":\"string\",\"description\":\"The new name.\"},"
+                        + "\"model\":{\"type\":\"string\",\"description\":\"The model's "
+                        + "current name or id. May be omitted when the file holds only "
+                        + "one.\"}},"
+                        + "\"required\":[\"name\"]}",
+                (request) -> renameModel(workspace.current(), request));
     }
 
     // ------------------------------------------------------------------ tools
+
+    /**
+     * Renames a model by renaming its ROW, and lets the qualifier follow.
+     *
+     * <p>
+     * The name is in two places - on the qualifier, and on a row of the F_MODEL_TREE catalog
+     * that the application's Models panel reads. Setting the qualifier's name directly leaves
+     * the row saying the old one, so the panel goes on showing it; but there is a listener the
+     * other way round, installed by IDEF0Plugin, which renames the qualifier whenever the row
+     * is renamed. So the row is the one to write, and both end up right.
+     *
+     * <p>
+     * A model with no row at all is possible - a file built by something that did not register
+     * it - and then the panel never showed it in the first place. Making the row is the repair
+     * that renaming needs anyway.
+     */
+    static Object renameModel(ModelSession session, Map<String, Object> request)
+            throws Exception {
+        Qualifier model = DiagramTools.resolveModel(session, request);
+        String name = Json.string(request, "name");
+        if (name.trim().isEmpty())
+            throw new IllegalArgumentException("A model needs a name.");
+        String was = model.getName();
+
+        Engine engine = session.getEngine();
+        session.markChanged();
+        Attribute link = StandardAttributesPlugin.getAttributeQualifierId(engine);
+        Qualifier tree = IDEF0Plugin.getModelTree(engine);
+
+        RowSet rows = new RowSet(engine, tree, new Attribute[]{link});
+        try {
+            for (Row row : rows.getAllRows()) {
+                Long id = (Long) row.getAttribute(link);
+                if (id != null && id.longValue() == model.getId()) {
+                    row.setName(name);
+                    return renamed(engine, model, was, name, false);
+                }
+            }
+            Element element = engine.createElement(tree.getId());
+            engine.setAttribute(element, link, model.getId());
+            rows.createRow(null, element).setName(name);
+        } finally {
+            rows.close();
+        }
+        return renamed(engine, model, was, name, true);
+    }
+
+    /**
+     * The qualifier is read back rather than assumed: the rename happens through a listener,
+     * and an answer that reported what it had asked for would say nothing about whether it
+     * arrived.
+     */
+    private static Object renamed(Engine engine, Qualifier model, String was, String name,
+                                  boolean rowCreated) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("model", engine.getQualifier(model.getId()).getName());
+        out.put("was", was);
+        if (rowCreated)
+            out.put("note", "This model had no row in the Models panel, so one was made for "
+                    + "it. It will be listed there now.");
+        return out;
+    }
 
     private static Object setModelInfo(ModelSession session, Map<String, Object> request)
             throws Exception {

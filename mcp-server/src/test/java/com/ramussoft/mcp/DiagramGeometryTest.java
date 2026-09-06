@@ -236,6 +236,47 @@ public class DiagramGeometryTest {
         }
     }
 
+    /**
+     * How wide a name may run before it wraps.
+     *
+     * <p>
+     * The default suits most names, and nothing here can work out when it does not: a long
+     * name in a narrow lane of arrows wants to be narrow and tall, and only whoever is looking
+     * at the diagram knows that. So it is asked for - and what proves it arrived is that the
+     * same name in half the room comes back taller.
+     */
+    @Test
+    public void aNarrowerLabelWidthWrapsTheNameOntoMoreLines() throws Exception {
+        Assume.assumeFalse(GraphicsEnvironment.isHeadless());
+
+        assertTrue("the same name laid out in less room is taller",
+                labelHeight(60.0) > labelHeight(null));
+    }
+
+    private double labelHeight(Double labelWidth) throws Exception {
+        String name = "Утверждённое техническое задание на разработку";
+        File file = new File(folder.getRoot(),
+                "width-" + (labelWidth == null ? "default" : labelWidth.intValue()) + ".rsf");
+        try (ModelSession session = ModelSession.createNew(file)) {
+            Qualifier model = session.addModel("Модель", -1);
+            DataPlugin plugin = session.getDataPlugin(model);
+            DiagramBuilder builder = new DiagramBuilder(session, model,
+                    plugin.getBaseFunction());
+            Function a0 = builder.addActivity("Работа", null, null);
+            builder.addArrow(name, DiagramBuilder.End.frame(MovingPanel.LEFT),
+                    DiagramBuilder.End.on(a0, MovingPanel.LEFT), null, null, null,
+                    labelWidth);
+            builder.commit();
+
+            List<Object> arrows =
+                    DiagramGeometry.read(plugin, plugin.getBaseFunction()).arrows();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> bounds =
+                    (Map<String, Object>) named(arrows, name).get("bounds");
+            return (Double) bounds.get("height");
+        }
+    }
+
     // ------------------------------------------------------------------ reading
 
     @SuppressWarnings("unchecked")

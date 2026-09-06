@@ -76,21 +76,31 @@ final class FileTools {
                         + "written out first.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"path\":{\"type\":\"string\",\"description\":\"Where to create the "
-                        + "file. It must not already exist.\"},"
+                        + "file. It must not already exist unless you pass overwrite.\"},"
                         + "\"name\":{\"type\":\"string\",\"description\":\"The name of the "
                         + "model inside the file.\"},"
                         + "\"notation\":{\"type\":\"string\",\"enum\":[\"idef0\",\"dfd\","
-                        + "\"dfds\"],\"description\":\"Default idef0.\"}},"
+                        + "\"dfds\"],\"description\":\"Default idef0.\"},"
+                        + "\"overwrite\":{\"type\":\"boolean\",\"description\":\"Replace an "
+                        + "existing model at that path. Only a Ramus model may be replaced, "
+                        + "never one open in the application, and a copy of it is kept "
+                        + "beside it. Default false.\"}},"
                         + "\"required\":[\"path\",\"name\"]}",
                 (request) -> create(workspace, request));
 
         Tools.addTool(server, json, "save_model_as",
                 "Writes the open model to another path and continues working there. The file "
                         + "it came from is left exactly as it was, which makes this the way "
-                        + "to experiment without touching the original.",
+                        + "to experiment without touching the original. Given the path it is "
+                        + "already open at, it is simply a save.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"path\":{\"type\":\"string\",\"description\":\"Where to write it. "
-                        + "It must not already exist.\"}},\"required\":[\"path\"]}",
+                        + "It must not already exist unless you pass overwrite.\"},"
+                        + "\"overwrite\":{\"type\":\"boolean\",\"description\":\"Replace an "
+                        + "existing model at that path. Only a Ramus model may be replaced, "
+                        + "never one open in the application, and a copy of it is kept "
+                        + "beside it. Default false.\"}},"
+                        + "\"required\":[\"path\"]}",
                 (request) -> saveAs(workspace, request));
 
         Tools.addTool(server, json, "delete_model",
@@ -165,7 +175,7 @@ final class FileTools {
         return out;
     }
 
-    private static Object create(Workspace workspace, Map<String, Object> request)
+    static Object create(Workspace workspace, Map<String, Object> request)
             throws IOException {
         File file = new File(Json.string(request, "path"));
         String name = Json.string(request, "name");
@@ -186,23 +196,52 @@ final class FileTools {
                 throw new IllegalArgumentException("Unknown notation \"" + notation
                         + "\". Use idef0, dfd or dfds.");
         }
-        String wrote = workspace.create(file, name, type);
+        boolean overwrite = Json.bool(request, "overwrite", false);
+        File replaced = overwrite && file.exists() ? makeWayFor(workspace, file) : null;
+
+        String wrote = workspace.create(file, name, type, overwrite);
         Map<String, Object> out = new LinkedHashMap<>(opened(workspace, wrote));
         out.put("created", file.getAbsolutePath());
+        if (replaced != null)
+            out.put("replaced_model_copied_to", replaced.getAbsolutePath());
         return out;
     }
 
-    private static Object saveAs(Workspace workspace, Map<String, Object> request)
+    static Object saveAs(Workspace workspace, Map<String, Object> request)
             throws IOException {
         File file = new File(Json.string(request, "path"));
-        if (file.exists())
-            throw new IllegalArgumentException(file + " already exists. Choose another path.");
         File from = workspace.current().getFile();
+
+        // Saving to the path it is already open at. This used to run the whole save-as and
+        // then report the file it had just overwritten as "original_untouched", which is a
+        // lie an agent has no way to catch - and it reset the backup, so the next change
+        // took a second copy of a model already changed.
+        if (sameFile(from, file)) {
+            workspace.current().save();
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("saved", file.getAbsolutePath());
+            out.put("note", "That is the path this model is already open at, so this was a "
+                    + "save rather than a save-as. Nothing was copied.");
+            return out;
+        }
+
+        boolean overwrite = Json.bool(request, "overwrite", false);
+        File replaced = null;
+        if (file.exists()) {
+            if (!overwrite)
+                throw new IllegalArgumentException(file + " already exists. Choose another "
+                        + "path, or pass overwrite to replace it - which keeps a copy of what "
+                        + "was there.");
+            replaced = makeWayFor(workspace, file);
+        }
+
         workspace.saveAs(file);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("saved_as", file.getAbsolutePath());
         out.put("original_untouched", from.getAbsolutePath());
         out.put("now_working_on", file.getAbsolutePath());
+        if (replaced != null)
+            out.put("replaced_model_copied_to", replaced.getAbsolutePath());
         return out;
     }
 
@@ -218,6 +257,31 @@ final class FileTools {
         if (!file.delete())
             throw new IllegalStateException("Could not delete " + file + ".");
         return Map.of("deleted", file.getAbsolutePath());
+    }
+
+    /**
+     * Clears the way to write over an existing file, or refuses to.
+     *
+     * <p>
+     * Overwriting is the one thing here that destroys work, so it has three conditions and
+     * none of them is optional. It must be a Ramus model - so the flag can never be aimed at
+     * a document or a photograph. It must not be open in the application - a file replaced
+     * under a running Ramus is a session that will write the old contents back over the new
+     * ones. And a copy is taken first, by the same rule as every other backup, so that a
+     * mistaken overwrite is a nuisance rather than a loss.
+     *
+     * @return where the copy went.
+     */
+    private static File makeWayFor(Workspace workspace, File file) throws IOException {
+        requireModel(file);
+        if (workspace.hasModel() && sameFile(workspace.peek().getFile(), file))
+            throw new IllegalArgumentException("That model is open. Call close_model first - "
+                    + "the open session holds it.");
+        if (ModelLock.isOpenElsewhere(file))
+            throw new IllegalStateException(file + " is open in Ramus Next. Replacing it now "
+                    + "would leave that session holding the model as it was, and saving there "
+                    + "would write it back over this. Close it in the application first.");
+        return ModelSession.backupOf(file);
     }
 
     // ------------------------------------------------------------- plumbing
