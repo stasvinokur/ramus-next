@@ -193,6 +193,37 @@ public class ModelSessionTest {
     }
 
     /**
+     * The session lock records which model the session belongs to, and that record is what
+     * names a model in the recovery the application offers after a crash. A path with dots in
+     * the file name and non-ASCII in it has to come back byte for byte - and there must be
+     * nothing after it, because the same lock is rewritten when a model is saved elsewhere and
+     * a shorter path would otherwise leave the tail of the longer one behind.
+     */
+    @Test
+    public void theSessionLockRecordsTheModelPathExactly() throws Exception {
+        Path source = repositoryRoot().resolve("dest/doc/ru/Model example.rsf");
+        File awkward = new File(folder.getRoot(), "практика 1.1.rsf");
+        Files.copy(source, awkward.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+        String recorded = null;
+        try (ModelSession session = new ModelSession(awkward, true)) {
+            File sessions = new File(
+                    com.ramussoft.core.impl.FileIEngineImpl.getSessionsPath());
+            for (File directory : sessions.listFiles()) {
+                File lock = new File(directory, ".lock");
+                if (!lock.isFile())
+                    continue;
+                String held = new String(Files.readAllBytes(lock.toPath()), "UTF-8");
+                if (held.endsWith(awkward.getName()))
+                    recorded = held;
+            }
+        }
+
+        assertEquals("the lock records the model path, whole and with nothing after it",
+                awkward.getAbsolutePath(), recorded);
+    }
+
+    /**
      * The backup is taken before the first CHANGE, not before the first save - so a session
      * that changes something and then crashes still leaves the model as it was found.
      */
