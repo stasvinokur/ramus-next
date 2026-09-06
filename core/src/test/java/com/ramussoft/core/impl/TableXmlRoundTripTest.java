@@ -9,6 +9,8 @@ import static org.junit.Assert.fail;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
+import java.util.Locale;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -236,6 +238,39 @@ public class TableXmlRoundTripTest {
     public void readsBothSpellingsOfADate() throws Exception {
         assertEquals(MOMENT.getTime(), XMLToTable.parseDate("9/7/24 9:21 AM").getTime());
         assertEquals(MOMENT.getTime(), XMLToTable.parseDate("9/7/24, 9:21 AM").getTime());
+    }
+
+    /**
+     * The spelling the runtime itself produces - which is not the one anybody types.
+     *
+     * <p>
+     * Since CLDR 42, that is on every Java from 20 onwards, the short time format puts U+202F
+     * before AM. Ramus 2.x takes its format from the runtime, so a model it saved on a current
+     * Java has that character in every date. A test that types "9:21 AM" by hand asserts a
+     * character no JRE writes, passes, and lets a file that will not open reach a user - which
+     * is what happened. So the input is built the way the runtime builds it.
+     *
+     * <p>
+     * Whether the mismatch throws depends on the JRE: Java 26 accepts the narrow space against
+     * a plain one, the Temurin 21 this product ships does not. On a modern development machine
+     * this test therefore passes either way; it earns its keep on the runtime that is
+     * shipped, and that is where it was checked.
+     */
+    @Test
+    public void readsTheDateTheRuntimeItselfWrites() throws Exception {
+        String written = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT,
+                Locale.ENGLISH).format(MOMENT);
+        assertEquals("the round trip of what the runtime writes",
+                MOMENT.getTime() / 60000, XMLToTable.parseDate(written).getTime() / 60000);
+    }
+
+    /** And the two characters spelled out, so the case survives whatever CLDR does next. */
+    @Test
+    public void readsADateWrittenWithANarrowNoBreakSpace() throws Exception {
+        assertEquals(MOMENT.getTime(),
+                XMLToTable.parseDate("9/7/24, 9:21\u202fAM").getTime());
+        assertEquals(MOMENT.getTime(),
+                XMLToTable.parseDate("9/7/24 9:21\u00a0AM").getTime());
     }
 
     @Test

@@ -36,17 +36,18 @@ final class RenderTools {
 
     static void register(McpSyncServer server, Json json, Workspace workspace) {
         Tools.addToolReturningContent(server, "render_diagram",
-                "Draws one diagram and returns it as a PNG image. Give it the id of an "
-                        + "activity that HAS a decomposition and you get the diagram below "
-                        + "that activity - its child boxes and the arrows between them, laid "
-                        + "out as the modeller drew them. Use this when the arrangement "
-                        + "matters; use get_diagram when you only need the names.",
+                "Draws one diagram and returns it as a PNG image: the child boxes of the "
+                        + "given activity and the arrows between them, laid out as the "
+                        + "modeller drew them. Called with no activity it draws the context "
+                        + "diagram. Use this when the arrangement matters; use get_diagram "
+                        + "when you only need the names, and get_diagram with "
+                        + "include_geometry when you need the numbers.",
                 "{\"type\":\"object\",\"properties\":{"
-                        + "\"activity\":{\"type\":\"integer\",\"description\":\"The id of the "
-                        + "activity whose diagram to draw, from get_function_tree.\"},"
+                        + "\"activity\":{\"type\":\"integer\",\"description\":\""
+                        + DiagramTools.SHEET + "\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
-                        + "\"required\":[\"activity\"]}",
+                        + "\"required\":[]}",
                 (request) -> render(workspace.current(), request));
     }
 
@@ -55,12 +56,7 @@ final class RenderTools {
             throws Exception {
         Qualifier model = DiagramTools.resolveModel(session, request);
         DataPlugin plugin = session.getDataPlugin(model);
-        long id = Json.integer(request, "activity", -1);
-
-        Function function = DiagramTools.findFunction(plugin, plugin.getBaseFunction(), id);
-        if (function == null)
-            throw new IllegalArgumentException("No activity with id " + id + " in model \""
-                    + model.getName() + "\". Ids come from get_function_tree.");
+        Function function = DiagramTools.sheetOf(plugin, model, request, "activity");
 
         boolean decomposed = false;
         for (Row child : plugin.getChilds(function, true))

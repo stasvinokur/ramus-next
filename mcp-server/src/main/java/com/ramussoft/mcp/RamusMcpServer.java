@@ -114,9 +114,15 @@ public final class RamusMcpServer {
         McpJsonMapper mapper = McpJsonDefaults.getMapper();
         McpSyncServer server = McpServer
                 .sync(new StdioServerTransportProvider(mapper, stdin, stdout))
-                .serverInfo("ramus-next", Metadata.getApplicationVersion())
+                .serverInfo("ramus-next", version())
                 .instructions(instructions(workspace))
-                .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
+                // tools(false): the tool list of a running server never changes, so the
+                // listChanged notification would never be sent. Declaring it was a promise
+                // that was never kept - and worse, it points at the wrong remedy. When the
+                // application is updated under a live session, THIS process goes on serving
+                // the tools it was built with; re-listing them returns the same list. Only a
+                // new process has the new tools. See version() for what does help.
+                .capabilities(McpSchema.ServerCapabilities.builder().tools(false).build())
                 .build();
 
         Tools.registerAll(server, workspace, mapper);
@@ -184,6 +190,37 @@ public final class RamusMcpServer {
     }
 
     /**
+     * Which build this is, not merely which release.
+     *
+     * <p>
+     * The release number is a constant in the source, so two builds a day apart both call
+     * themselves 3.1.0 - and when someone installs an update while a session is running, the
+     * session goes on talking to the old process with no way to tell. That happened: half the
+     * tools were missing and nothing said why. The file's own timestamp separates them, costs
+     * nothing, and needs no build machinery.
+     *
+     * <p>
+     * Running from classes rather than a jar there is nothing to date, and the release number
+     * alone is the honest answer.
+     */
+    static String version() {
+        String release = Metadata.getApplicationVersion();
+        try {
+            java.net.URL location = RamusMcpServer.class.getProtectionDomain()
+                    .getCodeSource().getLocation();
+            File jar = new File(location.toURI());
+            if (jar.isFile())
+                return release + " (build " + new java.text.SimpleDateFormat(
+                        "yyyy-MM-dd HH:mm", java.util.Locale.ENGLISH)
+                        .format(new java.util.Date(jar.lastModified())) + ")";
+        } catch (Exception noJar) {
+            // Started from a directory of classes, or a class loader that does not say where
+            // it read them. Either way there is no build to date.
+        }
+        return release;
+    }
+
+    /**
      * What the client is told about this server before it calls anything. Worth more than it
      * looks: an agent that knows a catalog is what Ramus calls a table of things, and that
      * queries are dotted paths, asks for the right tool the first time.
@@ -204,6 +241,11 @@ public final class RamusMcpServer {
             text.append("Nothing is open yet: use list_files to see what is in a directory, "
                     + "then open_model. ");
         text.append("open_model switches to another file.\n\n");
+        text.append("This is Ramus Next ").append(version()).append(". If the tools listed ")
+                .append("here are fewer than the documentation describes, this session is ")
+                .append("holding a server started before the application was updated: asking ")
+                .append("for the tool list again will not help, because this process only has ")
+                .append("the tools it was built with. Start a new session.\n\n");
         if (workspace.isReadOnly())
             text.append("This server is READ-ONLY: nothing can be changed, created, saved "
                     + "or deleted.");

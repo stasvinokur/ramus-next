@@ -78,9 +78,8 @@ final class TitleTools {
                         + "is done: changing a diagram stamps its revision date with the time "
                         + "of the change, exactly as it does in the application.",
                 "{\"type\":\"object\",\"properties\":{"
-                        + "\"activity\":{\"type\":\"integer\",\"description\":\"The activity "
-                        + "whose diagram this is, from get_function_tree. Omit for the "
-                        + "context diagram.\"},"
+                        + "\"activity\":{\"type\":\"integer\",\"description\":\""
+                        + DiagramTools.SHEET + "\"},"
                         + "\"author\":{\"type\":\"string\"},"
                         + "\"date\":{\"type\":\"string\",\"description\":\"When it was drawn, "
                         + "dd.MM.yyyy.\"},"
@@ -159,9 +158,7 @@ final class TitleTools {
             throws Exception {
         Qualifier model = DiagramTools.resolveModel(session, request);
         DataPlugin plugin = session.getDataPlugin(model);
-        Function diagram = request.get("activity") == null
-                ? plugin.getBaseFunction()
-                : find(plugin, Json.integer(request, "activity", -1), model);
+        Function diagram = DiagramTools.sheetOf(plugin, model, request, "activity");
 
         session.markChanged();
         return inTransaction(session.getEngine(), () -> {
@@ -227,14 +224,6 @@ final class TitleTools {
                 throw new IllegalArgumentException("Unknown status \"" + status
                         + "\". The frame has four: working, draft, recommended, publication.");
         }
-    }
-
-    private static Function find(DataPlugin plugin, long id, Qualifier model) {
-        Function found = DiagramTools.findFunction(plugin, plugin.getBaseFunction(), id);
-        if (found == null)
-            throw new IllegalArgumentException("No activity with id " + id + " in model \""
-                    + model.getName() + "\". Ids come from get_function_tree.");
-        return found;
     }
 
     private static String text(Map<String, Object> request, String key) {

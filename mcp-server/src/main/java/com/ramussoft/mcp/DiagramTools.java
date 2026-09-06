@@ -17,7 +17,6 @@ import com.ramussoft.pb.Sector;
 import com.ramussoft.pb.data.negine.NSectorBorder;
 import com.ramussoft.pb.idef.elements.PaintSector;
 import com.ramussoft.pb.idef.visual.MovingArea;
-import com.ramussoft.pb.print.PIDEF0painter;
 import com.ramussoft.pb.idef.visual.IDEF0Object;
 
 /**
@@ -39,11 +38,26 @@ final class DiagramTools {
     private static final String[] ROLES = {"output", "mechanism", "input", "control"};
 
     /**
-     * The panel is sized before the diagram is loaded, and the size decides the coordinate
-     * scale. Nothing here draws, so this only has to be large enough that the geometry is
-     * the geometry of a real diagram rather than of a squashed one.
+     * What a sheet is named by, said the same way everywhere it is asked for.
+     *
+     * <p>
+     * A diagram has no id of its own in this model: it is identified by the activity it
+     * decomposes, and three tools spell that parameter three different ways for historical
+     * reasons - {@code activity} here, {@code diagram} in the arrow tools, {@code parent} in
+     * add_activity. The spellings are not being changed, because scripts already use them; the
+     * least that can be done is that all three mean exactly this, and all three default the
+     * same way.
      */
-    private static final java.awt.Dimension DIAGRAM_SIZE = new java.awt.Dimension(1600, 1200);
+    static final String SHEET = "The activity whose decomposition this diagram is, from "
+            + "get_function_tree. Omit for the context diagram - the single-box sheet the "
+            + "model's top activity is drawn on.";
+
+    /**
+     * And what {@code activity} means in the OTHER half of the tools, where it is not a sheet
+     * at all but one of the boxes on one.
+     */
+    static final String BOX = "The activity itself - a box drawn on a diagram - from "
+            + "get_function_tree or get_diagram.";
 
     static void register(McpSyncServer server, Json json, Workspace workspace) {
         Tools.addTool(server, json, "list_models",
@@ -59,7 +73,9 @@ final class DiagramTools {
                         + "(A0, A1, A11 and so on), its name, its type, and whether it is "
                         + "decomposed into a diagram of its own. This is the map of the "
                         + "model: read it first, then ask get_diagram about whichever "
-                        + "activity you care about.",
+                        + "activity you care about. Also returns context_diagram, which "
+                        + "names the A-0 sheet - the one holding the single top box, which "
+                        + "is not a node of this tree.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id, from list_models. May be omitted when the file holds only "
@@ -73,14 +89,36 @@ final class DiagramTools {
                 "Returns one diagram: the child activities of the given activity, and for "
                         + "each of them the arrows attached to it, grouped by role - input, "
                         + "control, mechanism, output. This is the answer to \"what does "
-                        + "this process consume and produce\".",
+                        + "this process consume and produce\". Ask for include_geometry to "
+                        + "get the page and every rectangle on it as well; use list_arrows "
+                        + "when what you need is how the arrows are connected.",
                 "{\"type\":\"object\",\"properties\":{"
-                        + "\"activity\":{\"type\":\"integer\",\"description\":\"The id of the "
-                        + "activity whose decomposition you want, from get_function_tree.\"},"
+                        + "\"activity\":{\"type\":\"integer\",\"description\":\"" + SHEET
+                        + "\"},"
+                        + "\"include_geometry\":{\"type\":\"boolean\",\"description\":\"Also "
+                        + "return the size of the page, the rectangle each box occupies, and "
+                        + "the route, label and tilde of each arrow - in the same units "
+                        + "add_activity takes as x and y. Default false.\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
-                        + "\"required\":[\"activity\"]}",
+                        + "\"required\":[]}",
                 (request) -> diagram(workspace.current(), request));
+
+        Tools.addTool(server, json, "list_arrows",
+                "Lists the arrows of one diagram, one row per segment, with both ends said "
+                        + "in full: the activity and role at each end, or the side of the "
+                        + "page it runs off, or the junction where it meets the rest of its "
+                        + "flow. Segments carrying one flow share a group number, so an arrow "
+                        + "that forks to four activities is one group rather than four "
+                        + "arrows of the same name - which is what get_diagram, grouping by "
+                        + "name, cannot tell you.",
+                "{\"type\":\"object\",\"properties\":{"
+                        + "\"activity\":{\"type\":\"integer\",\"description\":\"" + SHEET
+                        + "\"},"
+                        + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
+                        + "or id. May be omitted when the file holds only one.\"}},"
+                        + "\"required\":[]}",
+                (request) -> arrows(workspace.current(), request));
     }
 
     // ------------------------------------------------------------------ tools
@@ -123,6 +161,15 @@ final class DiagramTools {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("model", model.getName());
+        // A field and not a node. The A-0 sheet belongs to the base function, which carries
+        // the same IDEF0 code as its only child - so putting it in the tree would show A0
+        // twice and make an agent walk the model twice. But its id is what get_diagram,
+        // render_diagram and set_diagram_info want for the context diagram, and until now
+        // nothing said what that id was.
+        result.put("context_diagram", Map.of(
+                "id", base.getElement().getId(),
+                "code", "A-0",
+                "name", base.getName()));
         if (children.size() == 1 && code(children.get(0)).equals(code(base)))
             result.put("tree", describe(plugin, children.get(0), depth));
         else if (children.isEmpty())
@@ -139,35 +186,22 @@ final class DiagramTools {
     private static Object diagram(ModelSession session, Map<String, Object> request) {
         Qualifier model = resolveModel(session, request);
         DataPlugin plugin = session.getDataPlugin(model);
-        long id = Json.integer(request, "activity", -1);
+        Function parent = sheetOf(plugin, model, request, "activity");
+        boolean includeGeometry = Json.bool(request, "include_geometry", false);
 
-        Function parent = findFunction(plugin, plugin.getBaseFunction(), id);
-        if (parent == null)
-            throw new IllegalArgumentException("No activity with id " + id
-                    + " in model \"" + model.getName()
-                    + "\". Ids come from get_function_tree.");
-
-        // The arrows of a diagram are not a property of an activity that can be read off
-        // it: they live in a blob of visual data, and the only thing that decodes it is
-        // SectorRefactor, which belongs to a Swing panel. Driving that panel without a
-        // window is what the web export has always done. createMovingArea only sizes it -
-        // setActiveFunction is what loads the diagram.
-        MovingArea area = PIDEF0painter.createMovingArea(DIAGRAM_SIZE, plugin, parent);
-        area.setActiveFunction(parent);
+        DiagramGeometry geometry = DiagramGeometry.read(plugin, parent);
 
         Map<Long, Map<String, List<String>>> byActivity = new LinkedHashMap<>();
-        Vector<PaintSector> painted = area.getRefactor().getSectors();
-        if (painted != null)
-            for (PaintSector paint : painted) {
-                Sector sector = paint.getSector();
-                if (sector == null)
-                    continue;
-                String name = sector.getName();
-                if (name == null || name.trim().isEmpty())
-                    continue;
-                record(byActivity, sector.getStart(), name);
-                record(byActivity, sector.getEnd(), name);
-            }
+        for (PaintSector paint : geometry.sectors()) {
+            Sector sector = paint.getSector();
+            if (sector == null)
+                continue;
+            String name = sector.getName();
+            if (name == null || name.trim().isEmpty())
+                continue;
+            record(byActivity, sector.getStart(), name);
+            record(byActivity, sector.getEnd(), name);
+        }
 
         List<Object> children = new ArrayList<>();
         for (Row child : plugin.getChilds(parent, true)) {
@@ -180,6 +214,8 @@ final class DiagramTools {
             out.put("code", code(function));
             out.put("name", function.getName());
             out.put("type", typeName(function.getType()));
+            if (includeGeometry)
+                out.put("bounds", DiagramGeometry.rectangle(function.getBounds()));
             out.put("arrows", arrowsOf(byActivity.get(childId)));
             children.add(out);
         }
@@ -190,10 +226,57 @@ final class DiagramTools {
                 "id", parent.getElement().getId(),
                 "code", code(parent),
                 "name", parent.getName()));
+        if (includeGeometry)
+            result.put("page", geometry.page());
         result.put("children", children);
+        if (includeGeometry)
+            result.put("arrows_drawn", geometry.arrows());
         if (children.isEmpty())
-            result.put("note", "This activity has no decomposition, so it has no diagram "
-                    + "of its own.");
+            result.put("note", notDecomposed(plugin, parent));
+        return result;
+    }
+
+    /**
+     * What to say about an activity that has no diagram of its own.
+     *
+     * <p>
+     * "No decomposition, so no diagram" was true and useless: every activity is DRAWN
+     * somewhere - as a box on its parent's sheet - and an agent that asked the wrong one of
+     * the two questions was left with nowhere to go and asked again. Naming the sheet it is
+     * drawn on answers the question that was meant.
+     */
+    private static String notDecomposed(DataPlugin plugin, Function function) {
+        Function parent = parentOf(function);
+        if (parent == null)
+            return "\"" + function.getName() + "\" is not decomposed, so it has no diagram "
+                    + "of its own.";
+        return "\"" + function.getName() + "\" is not decomposed, so it has no diagram of "
+                + "its own - it is drawn as a box on the diagram of \"" + parent.getName()
+                + "\" (activity " + parent.getElement().getId() + ", " + code(parent)
+                + "). Ask for that one.";
+    }
+
+    /** The activity one level up, or null at the top of the model. */
+    private static Function parentOf(Function function) {
+        com.ramussoft.database.common.Row parent =
+                ((com.ramussoft.database.common.Row) function).getParent();
+        return parent instanceof Function ? (Function) parent : null;
+    }
+
+    private static Object arrows(ModelSession session, Map<String, Object> request) {
+        Qualifier model = resolveModel(session, request);
+        DataPlugin plugin = session.getDataPlugin(model);
+        Function parent = sheetOf(plugin, model, request, "activity");
+
+        DiagramGeometry geometry = DiagramGeometry.read(plugin, parent);
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("model", model.getName());
+        result.put("activity", Map.of(
+                "id", parent.getElement().getId(),
+                "code", code(parent),
+                "name", parent.getName()));
+        result.put("page", geometry.page());
+        result.put("arrows", geometry.arrows());
         return result;
     }
 
@@ -313,6 +396,32 @@ final class DiagramTools {
             default:
                 return "type " + type;
         }
+    }
+
+    /**
+     * The activity a sheet belongs to: the one named, or the context diagram by default.
+     *
+     * <p>
+     * Defaulting matters more than it looks. The context diagram's owner is the base function,
+     * whose id is not a node of the function tree - so an agent that wanted the A-0 sheet had
+     * to know a number nothing had told it, and the commonest request of all was the one that
+     * could not be made.
+     */
+    static Function sheetOf(DataPlugin plugin, Qualifier model, Map<String, Object> request,
+                            String key) {
+        Function base = plugin.getBaseFunction();
+        if (base == null)
+            throw new IllegalStateException("Model \"" + model.getName()
+                    + "\" has no top activity.");
+        if (request == null || request.get(key) == null)
+            return base;
+        long id = Json.integer(request, key, -1);
+        Function found = findFunction(plugin, base, id);
+        if (found == null)
+            throw new IllegalArgumentException("No activity with id " + id + " in model \""
+                    + model.getName() + "\". Ids come from get_function_tree, and its "
+                    + "context_diagram field has the id of the A-0 sheet.");
+        return found;
     }
 
     static Function findFunction(DataPlugin plugin, Function from, long id) {

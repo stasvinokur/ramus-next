@@ -68,20 +68,51 @@ public class XMLToTable {
     }
 
     public static synchronized Date parseDate(String value) throws SQLException {
+        String normal = normalizeSpaces(value);
         try {
-            return DATE_FORMAT.parse(value);
+            return DATE_FORMAT.parse(normal);
         } catch (ParseException e) {
             // DATE_FORMAT is public and writable, so fall through to the known patterns
             // rather than trusting it to be one of them.
         }
         for (String pattern : DATE_PATTERNS) {
             try {
-                return new SimpleDateFormat(pattern, Locale.ENGLISH).parse(value);
+                return new SimpleDateFormat(pattern, Locale.ENGLISH).parse(normal);
             } catch (ParseException e) {
                 // try the next spelling
             }
         }
-        throw new SQLException("Unparseable date in model file: \"" + value + "\"");
+        throw new SQLException("The date \"" + value + "\" in this model file is written in "
+                + "a format this version cannot read. The file was probably written by "
+                + "another version of Ramus; open it there and save it again, or report the "
+                + "date above.");
+    }
+
+    /**
+     * Turns every kind of space into the ordinary one before a date is parsed.
+     *
+     * <p>
+     * Not a nicety. Since CLDR 42 - that is, on every Java from 20 onwards - the short time
+     * format puts U+202F, a narrow no-break space, before AM and PM. Ramus 2.x takes its
+     * format from the runtime, so a model saved by it on a current Java has that character in
+     * every date, and a pattern written with an ordinary space does not match it. The result
+     * was that such a model would not open at all.
+     *
+     * <p>
+     * Worth knowing before touching this: whether the mismatch throws depends on the JRE.
+     * Java 26 quietly accepts the narrow space against a plain one in the pattern; the Temurin
+     * 21 this product ships does not. So the failure is invisible on a modern development
+     * machine and certain on a user's, which is exactly how it reached one.
+     *
+     * <p>
+     * Normalising here rather than adding two more entries to {@link #DATE_PATTERNS} covers
+     * U+00A0 as well, survives whatever CLDR does to whitespace next, and changes nothing
+     * about what is written - the writer stays pinned to ASCII, so files remain byte for byte
+     * what they were.
+     */
+    private static String normalizeSpaces(String value) {
+        return value == null ? null
+                : value.replace('\u202f', ' ').replace('\u00a0', ' ').replace('\u2009', ' ');
     }
 
     private interface Converter {

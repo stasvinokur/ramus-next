@@ -62,6 +62,18 @@ public final class ModelSession implements AutoCloseable {
 
     private boolean backedUp = false;
 
+    /**
+     * Whether the file at the current path is this session's own work rather than something
+     * it was handed.
+     *
+     * <p>
+     * The backup exists to protect a model a person made from an agent editing it. A file
+     * this session created a moment ago is not that, and copying it produces a
+     * {@code .backup} of an empty model next to the real one - which then goes into their
+     * repository, or gets opened by mistake. It was reported exactly that way.
+     */
+    private boolean createdHere;
+
     private boolean dirty = false;
 
     /**
@@ -86,6 +98,7 @@ public final class ModelSession implements AutoCloseable {
     private ModelSession(File file, boolean readOnly, boolean isNew) {
         this.file = file;
         this.readOnly = readOnly;
+        this.createdHere = isNew;
         // A file that does not exist yet cannot be open in the application, and asking would
         // compare against a zero length - which every empty session copy would match.
         this.openElsewhere = !isNew && ModelLock.isOpenElsewhere(file);
@@ -232,6 +245,7 @@ public final class ModelSession implements AutoCloseable {
             throw new IllegalStateException(
                     "This server was started read-only, so the model cannot be saved.");
         File previous = file;
+        boolean existed = target.isFile();
         file = target;
         try {
             save();
@@ -240,8 +254,10 @@ public final class ModelSession implements AutoCloseable {
             throw failed;
         }
         // The backup belongs to the file it was taken from; the new path has its own history
-        // and gets its own backup the next time something changes.
+        // and gets its own backup the next time something changes - unless this session made
+        // it, in which case there is nothing there to protect.
         backedUp = false;
+        createdHere = !existed;
     }
 
     /**
@@ -260,9 +276,9 @@ public final class ModelSession implements AutoCloseable {
                     + "Close the model in the application and start this server again, or "
                     + "run it with --read-only if you only need to look.");
         if (!backedUp) {
-            // Nothing to copy for a model that has never been written; its backup is taken
-            // the first time it changes after it exists.
-            if (file.isFile())
+            // Nothing to copy for a model that has never been written, and nothing worth
+            // copying for one this session wrote itself.
+            if (file.isFile() && !createdHere)
                 backup();
             backedUp = true;
         }

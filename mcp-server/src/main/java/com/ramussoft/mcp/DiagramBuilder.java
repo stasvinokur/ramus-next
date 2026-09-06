@@ -16,7 +16,6 @@ import com.ramussoft.pb.Function;
 import com.ramussoft.pb.Row;
 import com.ramussoft.pb.Sector;
 import com.ramussoft.pb.Stream;
-import com.ramussoft.pb.data.negine.NSectorBorder;
 import com.ramussoft.pb.idef.elements.Ordinate;
 import com.ramussoft.pb.idef.elements.PaintSector;
 import com.ramussoft.pb.idef.elements.ReplaceStreamType;
@@ -76,6 +75,9 @@ final class DiagramBuilder {
 
     private final MovingArea area;
 
+    /** Reading the panel is the same work whether it is being drawn on or not. */
+    private final DiagramGeometry geometry;
+
     DiagramBuilder(ModelSession session, Qualifier model, Function parent) {
         this.session = session;
         this.plugin = session.getDataPlugin(model);
@@ -86,6 +88,7 @@ final class DiagramBuilder {
         // Without this the panel is not in the state where two points make an arrow, and
         // doSector quietly does nothing.
         area.setArrowAddingState();
+        this.geometry = DiagramGeometry.over(area);
     }
 
     Function getParent() {
@@ -372,7 +375,7 @@ final class DiagramBuilder {
     private boolean connectStub(String name, End box, boolean leaving,
                                 Double labelX, Double labelY, Integer fontSize) {
         PaintSector stub = null;
-        for (PaintSector paint : sectors()) {
+        for (PaintSector paint : geometry.sectors()) {
             Sector sector = paint.getSector();
             if (sector == null || !paint.isPart() || sector.getName() == null)
                 continue;
@@ -485,7 +488,7 @@ final class DiagramBuilder {
         FloatPoint anchor = exit == null ? arrow.getTildaPoint()
                 : new FloatPoint(exit.getX(), exit.getY());
         boolean vertical = side == MovingPanel.TOP || side == MovingPanel.BOTTOM;
-        MovingLabel label = labelOf(arrow);
+        MovingLabel label = geometry.labelOf(arrow);
         if (label == null)
             // The group already has its name somewhere else - a branch of an arrow drawn
             // earlier. Leaving that one where the modeller or an earlier call put it.
@@ -607,27 +610,6 @@ final class DiagramBuilder {
     }
 
     /**
-     * The label of an arrow, wherever it ended up.
-     *
-     * <p>
-     * One name belongs to a whole group of sectors carrying the same stream - the arrow and
-     * every branch of it - and exactly one of them holds the label. Asking the sector that was
-     * just drawn is right most of the time and wrong after a branch, which is why this asks
-     * the group.
-     */
-    @SuppressWarnings("unchecked")
-    private MovingLabel labelOf(PaintSector arrow) {
-        if (arrow.getText() != null)
-            return arrow.getText();
-        HashSet<PaintSector> group = new HashSet<PaintSector>();
-        arrow.getConnectedSector(group);
-        for (PaintSector sector : group)
-            if (sector.getText() != null)
-                return sector.getText();
-        return null;
-    }
-
-    /**
      * Branches an arrow that is already on this diagram, or merges into it.
      *
      * <p>
@@ -647,7 +629,7 @@ final class DiagramBuilder {
      *                rather than branching off the arrow and arriving at the activity.
      */
     void branch(String name, End box, boolean leaving) {
-        if (arrowNamed(name) == null)
+        if (geometry.arrowNamed(name) == null)
             throw new IllegalArgumentException("No arrow called \"" + name + "\" on this "
                     + "diagram, so there is nothing to branch. get_diagram lists the arrows "
                     + "it has.");
@@ -657,7 +639,7 @@ final class DiagramBuilder {
         PaintSector trunk = null;
         PaintSector.Pin pin = null;
         double longest = 0;
-        for (PaintSector paint : sectors()) {
+        for (PaintSector paint : geometry.sectors()) {
             Sector sector = paint.getSector();
             if (sector == null || sector.getName() == null
                     || !name.trim().equals(sector.getName().trim()))
@@ -719,24 +701,12 @@ final class DiagramBuilder {
         // Branching cut the trunk in two, and the name is still sitting where it belonged on
         // the whole one - which after two branches is the middle of the page rather than
         // beside the arrow. Put it back where the shortened segment can carry it.
-        PaintSector holder = arrowNamed(name);
+        PaintSector holder = geometry.arrowNamed(name);
         if (holder != null) {
             PaintSector owner = holder.getText() != null ? holder : ownerOfLabel(holder);
             if (owner != null)
                 nameIt(owner, box.activity, box.side, 1, false, null, null, null);
         }
-    }
-
-    /** The arrow of this name on this diagram, or null. */
-    private PaintSector arrowNamed(String name) {
-        for (PaintSector paint : sectors()) {
-            Sector sector = paint.getSector();
-            if (sector == null || sector.getName() == null)
-                continue;
-            if (name.trim().equals(sector.getName().trim()))
-                return paint;
-        }
-        return null;
     }
 
     /**
@@ -763,7 +733,7 @@ final class DiagramBuilder {
     private PaintSector paintedAs(Sector row) {
         if (row == null)
             return null;
-        for (PaintSector paint : sectors()) {
+        for (PaintSector paint : geometry.sectors()) {
             Sector sector = paint.getSector();
             if (sector != null && row.getGlobalId().equals(sector.getGlobalId()))
                 return paint;
@@ -846,23 +816,16 @@ final class DiagramBuilder {
      */
     private int occupied(Function activity, int side) {
         int used = 0;
-        for (PaintSector paint : sectors()) {
+        for (PaintSector paint : geometry.sectors()) {
             Sector sector = paint.getSector();
             if (sector == null)
                 continue;
-            if (touches(sector.getStart(), activity, side))
+            if (DiagramGeometry.touches(sector.getStart(), activity, side))
                 used++;
-            if (touches(sector.getEnd(), activity, side))
+            if (DiagramGeometry.touches(sector.getEnd(), activity, side))
                 used++;
         }
         return used;
-    }
-
-    private boolean touches(NSectorBorder border, Function activity, int side) {
-        return border != null && border.getFunction() != null
-                && border.getFunctionType() == side
-                && border.getFunction().getElement().getId()
-                        == activity.getElement().getId();
     }
 
     /**
@@ -905,7 +868,7 @@ final class DiagramBuilder {
      */
     void setArrow(String name, String newName, Double labelX, Double labelY,
                   Boolean tilde, Integer fontSize) {
-        PaintSector arrow = arrowNamed(name);
+        PaintSector arrow = geometry.arrowNamed(name);
         if (arrow == null)
             throw new IllegalArgumentException("No arrow called \"" + name + "\" on this "
                     + "diagram. get_diagram lists the arrows it has.");
@@ -921,7 +884,7 @@ final class DiagramBuilder {
 
         // The label may belong to another segment of the same flow, and then that is the one
         // to move and the one to write.
-        MovingLabel label = labelOf(arrow);
+        MovingLabel label = geometry.labelOf(arrow);
         PaintSector owner = arrow.getText() != null ? arrow : ownerOfLabel(arrow);
         if (label != null && (labelX != null || labelY != null || fontSize != null)) {
             area.stringBounder.setFont(owner == null ? arrow.getFont() : owner.getFont());
@@ -958,7 +921,7 @@ final class DiagramBuilder {
      */
     int removeArrow(String name) {
         int removed = 0;
-        for (PaintSector paint : new Vector<PaintSector>(sectors())) {
+        for (PaintSector paint : new Vector<PaintSector>(geometry.sectors())) {
             Sector sector = paint.getSector();
             if (sector == null || sector.getName() == null)
                 continue;
@@ -985,28 +948,17 @@ final class DiagramBuilder {
         if (!activity.isRemoveable())
             throw new IllegalStateException("\"" + activity.getName() + "\" cannot be "
                     + "removed. The top activity of a model is part of the model itself.");
-        for (PaintSector paint : new Vector<PaintSector>(sectors())) {
+        for (PaintSector paint : new Vector<PaintSector>(geometry.sectors())) {
             Sector sector = paint.getSector();
             if (sector == null)
                 continue;
-            if (touchesAnySide(sector.getStart(), activity)
-                    || touchesAnySide(sector.getEnd(), activity))
+            if (DiagramGeometry.touchesAnySide(sector.getStart(), activity)
+                    || DiagramGeometry.touchesAnySide(sector.getEnd(), activity))
                 paint.remove();
         }
         if (!plugin.removeRow(activity))
             throw new IllegalStateException("\"" + activity.getName() + "\" could not be "
                     + "removed.");
-    }
-
-    private boolean touchesAnySide(NSectorBorder border, Function activity) {
-        return border != null && border.getFunction() != null
-                && border.getFunction().getElement().getId()
-                        == activity.getElement().getId();
-    }
-
-    private Vector<PaintSector> sectors() {
-        Vector<PaintSector> sectors = area.getRefactor().getSectors();
-        return sectors == null ? new Vector<PaintSector>() : sectors;
     }
 
     /**

@@ -81,9 +81,7 @@ final class Tools {
     private static Object listCatalogs(ModelSession session, Map<String, Object> request) {
         boolean includeSystem = Json.bool(request, "include_system", false);
         List<Object> out = new ArrayList<>();
-        for (Qualifier q : session.getEngine().getQualifiers()) {
-            if (q.isSystem() && !includeSystem)
-                continue;
+        for (Qualifier q : catalogs(session, includeSystem)) {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", q.getId());
             row.put("name", q.getName());
@@ -96,6 +94,23 @@ final class Tools {
             out.add(row);
         }
         return Map.of("catalogs", out);
+    }
+
+    /**
+     * The catalogs of a model, system ones included on request.
+     *
+     * <p>
+     * Two calls and not one flag on one call: {@code getQualifiers} filters on
+     * {@code QUALIFIER_SYSTEM} in its SQL, so it can never return a system catalog and the
+     * flag on it had nothing to do. The consequence was not just a dead option - it was that
+     * F_MODEL_TREE and F_STREAMS, which are where a model's own name and its streams are
+     * kept, could not be named to any tool at all. The two sets do not overlap.
+     */
+    private static List<Qualifier> catalogs(ModelSession session, boolean includeSystem) {
+        List<Qualifier> all = new ArrayList<>(session.getEngine().getQualifiers());
+        if (includeSystem)
+            all.addAll(session.getEngine().getSystemQualifiers());
+        return all;
     }
 
     private static Object listElements(ModelSession session, Map<String, Object> request) {
@@ -172,8 +187,11 @@ final class Tools {
         } catch (NumberFormatException notAnId) {
             // fall through to the name
         }
+        // System catalogs are searched but not advertised: a caller that names F_MODEL_TREE
+        // has asked for it and should get it, while a caller that got the name wrong should
+        // be shown the catalogs a person would recognise.
         List<String> names = new ArrayList<>();
-        for (Qualifier q : session.getEngine().getQualifiers()) {
+        for (Qualifier q : catalogs(session, true)) {
             if (q.getName().equals(catalog))
                 return q;
             if (!q.isSystem())
@@ -218,13 +236,81 @@ final class Tools {
                                 .build();
                     } catch (Exception e) {
                         return McpSchema.CallToolResult.builder()
-                                .addTextContent(e.getMessage() == null
-                                        ? e.toString() : e.getMessage())
+                                .addTextContent(explain(name, e))
                                 .isError(true)
                                 .build();
                     }
                 })
                 .build());
+    }
+
+    /**
+     * A failure, told rather than dumped.
+     *
+     * <p>
+     * Most of what a tool throws is written on purpose - "no catalog called X, this model has Y
+     * and Z" - and that prose is the whole message. But a failure from inside the engine arrives
+     * wrapped, sometimes twice, and the sentence worth reading is at the bottom of the chain
+     * while the top carries a class name. An agent was handed
+     * {@code java.sql.SQLException: Unparseable date "9/5/26, 9:21 AM"} and could do nothing
+     * with it; what it needed was inside.
+     *
+     * <p>
+     * So: walk to the deepest cause that has anything to say and take that, then drop the
+     * {@code some.package.Exception:} artefact a wrapper leaves behind when it borrows its
+     * cause's toString for a message. The tool's name goes in front because an agent making
+     * several calls at once cannot otherwise tell which one refused.
+     */
+    static String explain(String tool, Throwable failure) {
+        Throwable deepest = failure;
+        String message = null;
+        for (Throwable t = failure; t != null; t = t.getCause()) {
+            deepest = t;
+            String said = t.getMessage();
+            if (said != null && !said.trim().isEmpty())
+                message = said.trim();
+        }
+        // Nothing anywhere in the chain said anything: what it was is all there is.
+        return tool + " failed: " + (message == null
+                ? deepest.getClass().getSimpleName() : withoutClassName(message));
+    }
+
+    /**
+     * Drops a leading {@code java.sql.SQLException: } and the like, however many are stacked up.
+     *
+     * <p>
+     * {@code new RuntimeException(cause)} takes {@code cause.toString()} as its message, so the
+     * class name ends up inside the text rather than beside it - which is how it reached an
+     * agent in the first place. Both tests below have to hold, because prose can easily open
+     * with a capitalised word and a colon and eating that would take the sentence with it.
+     */
+    private static String withoutClassName(String message) {
+        String rest = message;
+        while (true) {
+            int colon = rest.indexOf(':');
+            String head = colon < 0 ? rest : rest.substring(0, colon);
+            if (!namesAThrowable(head))
+                return rest;
+            String tail = colon < 0 ? "" : rest.substring(colon + 1).trim();
+            // A class name and nothing after it - thrown with nothing to say.
+            if (tail.isEmpty())
+                return simpleNameOf(head);
+            rest = tail;
+        }
+    }
+
+    /** Qualified, and named the way a throwable is named. */
+    private static boolean namesAThrowable(String head) {
+        if (head.indexOf('.') < 0 || !head.matches("[A-Za-z_$][A-Za-z0-9_$.]*"))
+            return false;
+        String simple = simpleNameOf(head);
+        return simple.endsWith("Exception") || simple.endsWith("Error")
+                || simple.equals("Throwable");
+    }
+
+    private static String simpleNameOf(String qualified) {
+        int dot = qualified.lastIndexOf('.');
+        return dot < 0 ? qualified : qualified.substring(dot + 1);
     }
 
     /** What a tool does when its answer is not text - an image, say. */
@@ -252,8 +338,7 @@ final class Tools {
                                 .build();
                     } catch (Exception e) {
                         return McpSchema.CallToolResult.builder()
-                                .addTextContent(e.getMessage() == null
-                                        ? e.toString() : e.getMessage())
+                                .addTextContent(explain(name, e))
                                 .isError(true)
                                 .build();
                     }

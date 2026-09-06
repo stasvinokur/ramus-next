@@ -39,12 +39,14 @@ final class DrawTools {
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"name\":{\"type\":\"string\",\"description\":\"What the activity "
                         + "does - a verb phrase, as IDEF0 asks.\"},"
-                        + "\"parent\":{\"type\":\"integer\",\"description\":\"The id of the "
-                        + "activity whose diagram this goes on, from get_function_tree. "
-                        + "Omit for the top of the model.\"},"
-                        + "\"x\":{\"type\":\"number\",\"description\":\"Left edge, in diagram "
-                        + "units; the page is 800 wide. Optional.\"},"
-                        + "\"y\":{\"type\":\"number\",\"description\":\"Top edge. Optional.\"},"
+                        + "\"parent\":{\"type\":\"integer\",\"description\":\""
+                        + DiagramTools.SHEET + "\"},"
+                        + "\"x\":{\"type\":\"number\",\"description\":\"Left edge, in "
+                        + "diagram units. The page is 800 by 444 with a 7-unit margin, so "
+                        + "the drawable area runs 7..793 across and 7..437 down; "
+                        + "get_diagram with include_geometry reports it. Optional.\"},"
+                        + "\"y\":{\"type\":\"number\",\"description\":\"Top edge, in the "
+                        + "same units. Optional.\"},"
                         + "\"font_size\":{\"type\":\"integer\",\"description\":\"Point size "
                         + "of the name inside the box. Default 10; the box is sized to fit "
                         + "the name at whatever size you give.\"},"
@@ -58,8 +60,8 @@ final class DrawTools {
                         + "how big it is. Only what you name is touched. Held in memory until "
                         + "you call save.",
                 "{\"type\":\"object\",\"properties\":{"
-                        + "\"activity\":{\"type\":\"integer\",\"description\":\"The activity "
-                        + "id, from get_function_tree.\"},"
+                        + "\"activity\":{\"type\":\"integer\",\"description\":\""
+                        + DiagramTools.BOX + "\"},"
                         + "\"name\":{\"type\":\"string\"},"
                         + "\"x\":{\"type\":\"number\"},"
                         + "\"y\":{\"type\":\"number\"},"
@@ -134,9 +136,8 @@ final class DrawTools {
                         + "\"tilde\":{\"type\":\"boolean\",\"description\":\"Whether to draw "
                         + "the zig-zag from the name to the line.\"},"
                         + "\"font_size\":{\"type\":\"integer\"},"
-                        + "\"diagram\":{\"type\":\"integer\",\"description\":\"The id of the "
-                        + "activity whose diagram the arrow is on. Omit for the top of the "
-                        + "model.\"},"
+                        + "\"diagram\":{\"type\":\"integer\",\"description\":\""
+                        + DiagramTools.SHEET + "\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[\"name\"]}",
@@ -149,9 +150,8 @@ final class DrawTools {
                         + "the same name can be drawn again.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"name\":{\"type\":\"string\",\"description\":\"The arrow's name.\"},"
-                        + "\"diagram\":{\"type\":\"integer\",\"description\":\"The id of the "
-                        + "activity whose diagram the arrow is on. Omit for the top of the "
-                        + "model.\"},"
+                        + "\"diagram\":{\"type\":\"integer\",\"description\":\""
+                        + DiagramTools.SHEET + "\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[\"name\"]}",
@@ -162,8 +162,8 @@ final class DrawTools {
                         + "its decomposition, and the arrows attached to it. This is not a "
                         + "small change: check get_diagram first.",
                 "{\"type\":\"object\",\"properties\":{"
-                        + "\"activity\":{\"type\":\"integer\",\"description\":\"The activity "
-                        + "id, from get_function_tree.\"},"
+                        + "\"activity\":{\"type\":\"integer\",\"description\":\""
+                        + DiagramTools.BOX + "\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[\"activity\"]}",
@@ -176,9 +176,7 @@ final class DrawTools {
             throws Exception {
         Qualifier model = DiagramTools.resolveModel(session, request);
         DataPlugin plugin = session.getDataPlugin(model);
-        Function parent = request.get("parent") == null
-                ? plugin.getBaseFunction()
-                : activity(plugin, Json.integer(request, "parent", -1), model);
+        Function parent = DiagramTools.sheetOf(plugin, model, request, "parent");
         String name = Json.string(request, "name");
 
         session.markChanged();
@@ -322,9 +320,7 @@ final class DrawTools {
             throws Exception {
         Qualifier model = DiagramTools.resolveModel(session, request);
         DataPlugin plugin = session.getDataPlugin(model);
-        Function parent = request.get("diagram") == null
-                ? plugin.getBaseFunction()
-                : activity(plugin, Json.integer(request, "diagram", -1), model);
+        Function parent = DiagramTools.sheetOf(plugin, model, request, "diagram");
         String name = Json.string(request, "name");
         Object newName = request.get("new_name");
         Object tilde = request.get("tilde");
@@ -346,9 +342,7 @@ final class DrawTools {
             throws Exception {
         Qualifier model = DiagramTools.resolveModel(session, request);
         DataPlugin plugin = session.getDataPlugin(model);
-        Function parent = request.get("diagram") == null
-                ? plugin.getBaseFunction()
-                : activity(plugin, Json.integer(request, "diagram", -1), model);
+        Function parent = DiagramTools.sheetOf(plugin, model, request, "diagram");
         String name = Json.string(request, "name");
 
         session.markChanged();

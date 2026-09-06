@@ -246,6 +246,30 @@ public class ModelSessionTest {
                 folder.getRoot().list().length);
     }
 
+    /**
+     * And a model this session made itself is not copied.
+     *
+     * <p>
+     * The backup protects a person's work from an agent. A file created seconds ago by the
+     * same agent is not that: create_model writes it, the first change copies it, and what is
+     * left beside the real model is a .backup of an empty one - reported after it landed in a
+     * repository.
+     */
+    @Test
+    public void aModelThisSessionCreatedIsNotBackedUp() throws Exception {
+        File file = new File(folder.getRoot(), "mine.rsf");
+        try (ModelSession session = ModelSession.createNew(file)) {
+            session.addModel("Модель", -1);
+            session.save();
+            assertTrue("it is on disk, which is what used to trigger the copy",
+                    file.isFile());
+            session.markChanged();
+            session.save();
+        }
+
+        assertEquals("the model, and nothing beside it", 1, folder.getRoot().list().length);
+    }
+
     /** A read-only session must not be able to change or save anything. */
     @Test
     public void aReadOnlySessionRefusesToChangeOrSave() throws Exception {
