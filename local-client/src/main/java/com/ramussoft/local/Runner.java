@@ -403,24 +403,51 @@ public class Runner implements Commands {
         return database;
     }
 
+    /**
+     * Serialises {@link #open(File)}.
+     *
+     * <p>
+     * That method is a check-then-act: it scans FilePlugin.plugins for a window already
+     * showing this file, and only if there is none does it load it. The registration that
+     * would make the scan succeed happens inside the load, behind reading the entire model
+     * from disk - seconds, for a real one. Two threads entering in that gap both find
+     * nothing and both load, and the result is two main frames with two independent
+     * sessions over one .rsf, where whichever is saved last silently discards the other's
+     * edits. Nothing downstream catches it: a session locks its own directory, never the
+     * model file.
+     *
+     * <p>
+     * There is more than one way in. The command line opens on the main thread, the startup
+     * launcher opens on a thread of its own, and macOS can deliver an open-file event at any
+     * moment. Holding the lock across the whole method is what makes the check and the
+     * registration atomic between all of them. Nothing on this path calls invokeAndWait, so
+     * the lock cannot invert against the event thread.
+     */
+    private static final Object OPEN_LOCK = new Object();
+
     public boolean open(File afile) {
 
-        JFrame frame = null;
+        Exception failure = null;
+        boolean opened = false;
 
-        if (afile != null)
+        synchronized (OPEN_LOCK) {
 
-            for (FilePlugin plugin : FilePlugin.plugins) {
-                if ((plugin.getFile() != null)
-                        && (plugin.getFile().equals(afile))) {
-                    frame = plugin.getFramework().getMainFrame();
-                    break;
+            JFrame frame = null;
+
+            if (afile != null)
+
+                for (FilePlugin plugin : FilePlugin.plugins) {
+                    if ((plugin.getFile() != null)
+                            && (plugin.getFile().equals(afile))) {
+                        frame = plugin.getFramework().getMainFrame();
+                        break;
+                    }
                 }
-            }
 
-        if (frame != null) {
-            frame.setVisible(true);
-            return false;
-        } else {
+            if (frame != null) {
+                frame.setVisible(true);
+                return false;
+            }
 
             SplashScreen screen = null;
             if (FilePlugin.plugins.size() < 1 && !Metadata.HIDE_SPLASH) {
@@ -440,27 +467,35 @@ public class Runner implements Commands {
             }
             try {
                 openFile(afile);
-                return true;
+                opened = true;
             } catch (Exception e) {
                 e.printStackTrace();
-                if (e instanceof FileMinimumVersionException) {
-                    JOptionPane
-                            .showMessageDialog(
-                                    null,
-                                    MessageFormat.format(
-                                            GlobalResourcesManager
-                                                    .getString("MinimumApplicationVersionToOpenFile"),
-                                            ((FileMinimumVersionException) e)
-                                                    .getMinimumVersion()));
-                } else
-                    JOptionPane
-                            .showMessageDialog(null, e.getLocalizedMessage());
-                return false;
+                failure = e;
             } finally {
                 if (screen != null)
                     screen.setVisible(false);
             }
         }
+
+        // Reported outside the lock, deliberately. showMessageDialog does not return until
+        // the user dismisses it, so telling them about one unreadable file while still
+        // holding the lock would stop every other window from opening anything until they
+        // noticed the dialog.
+        if (failure != null) {
+            if (failure instanceof FileMinimumVersionException) {
+                JOptionPane
+                        .showMessageDialog(
+                                null,
+                                MessageFormat.format(
+                                        GlobalResourcesManager
+                                                .getString("MinimumApplicationVersionToOpenFile"),
+                                        ((FileMinimumVersionException) failure)
+                                                .getMinimumVersion()));
+            } else
+                JOptionPane.showMessageDialog(null, failure.getLocalizedMessage());
+        }
+
+        return opened;
     }
 
     protected String getSplashImageName() {

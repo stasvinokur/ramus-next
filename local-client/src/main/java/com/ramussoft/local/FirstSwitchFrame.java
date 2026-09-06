@@ -7,7 +7,6 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
@@ -29,6 +28,7 @@ import javax.swing.filechooser.FileFilter;
 
 import com.ramussoft.common.Metadata;
 import com.ramussoft.gui.common.GlobalResourcesManager;
+import com.ramussoft.gui.common.Icons;
 import com.ramussoft.gui.common.prefrence.Options;
 
 public class FirstSwitchFrame extends JFrame {
@@ -114,8 +114,10 @@ public class FirstSwitchFrame extends JFrame {
     public FirstSwitchFrame() {
         setTitle(MessageFormat.format(GlobalResourcesManager
                 .getString("File.Launcher"), Metadata.getApplicationName()));
-        this.setIconImage(Toolkit.getDefaultToolkit().getImage(
-                getClass().getResource("/com/ramussoft/gui/application.png")));
+        // A list, not one image: the window manager picks the size it needs, and every
+        // entry is rendered from the 256-pixel source. A single 32-pixel bitmap was
+        // doubled by the compositor on a high-resolution display.
+        this.setIconImages(Icons.windowIcons());
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JPanel buttons = new JPanel(new GridLayout(1, 2, 5, 0));
         fileLocation.setPreferredSize(new Dimension(500, fileLocation

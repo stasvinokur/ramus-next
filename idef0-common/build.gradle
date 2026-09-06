@@ -47,3 +47,10 @@ dependencies {
     implementation 'tablelayout:TableLayout:20050920'
     testImplementation 'junit:junit:4.13.2'
 }
+
+// The junit dependency above was declared long before this module had any tests. Gradle
+// no longer picks a test framework by default, so without this the test task finds the
+// sources, compiles them and runs none of them.
+tasks.named('test') {
+    useJUnit()
+}

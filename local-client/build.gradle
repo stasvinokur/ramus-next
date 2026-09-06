@@ -37,6 +37,11 @@ dependencies {
     implementation project(':chart-gui')
 
     implementation 'com.h2database:h2:2.3.232'
+
+    // The MCP server ships inside the same fat jar and is reached by a second launcher with
+    // a different main class. One jar rather than two: a second shadow jar would duplicate
+    // batik, swingx, docking-frames and the rest, which is 18 MB to save 6.
+    implementation project(':mcp-server')
     testImplementation 'junit:junit:4.13.2'
 }
 tasks.named('test') {
@@ -388,10 +393,44 @@ def windowsJpackageArgs = commonJpackageArgs + [
 // CFBundleName (set via --mac-package-name) anyway, and Main.java sets the property at runtime
 // for the unpackaged case.
 
+// The same .rsf association the Windows installer registers, for the macOS bundle. jpackage
+// turns this into CFBundleDocumentTypes in Info.plist, without which Finder has no idea the
+// application can open a model and a double-click does nothing at all. The icon has to be an
+// .icns here rather than the .ico the Windows descriptor points at, which is why this is a
+// second task and not a shared one.
+tasks.register('prepareMacFileAssociations', WriteProperties) {
+    group = 'distribution'
+    description = 'Writes the .rsf file-association descriptor for jpackage on macOS.'
+    destinationFile = packagingWorkDir.map { it.file('rsf-association-mac.properties') }
+    property 'extension', 'rsf'
+    property 'mime-type', 'application/x-ramus-model'
+    property 'description', "${appDisplayName} model"
+    property 'icon', icnsFile.get().asFile.absolutePath
+}
+
+
+// A second launcher in the same package, pointing at a different main class in the same fat
+// jar. This is what makes the MCP server usable at all: an agent host needs a command to
+// run, and this one carries the bundled Java runtime with it, so a user who has never
+// installed a JDK can point Claude at RamusNext.app/Contents/MacOS/ramus-mcp and be done.
+//
+// win-console matters and is easy to miss: without it Windows builds a GUI executable with
+// no console, whose standard input and output are not connected to anything - and this
+// server speaks its protocol on exactly those two streams.
+tasks.register('prepareMcpLauncher', WriteProperties) {
+    group = 'distribution'
+    description = 'Writes the descriptor for the ramus-mcp launcher.'
+    destinationFile = packagingWorkDir.map { it.file('ramus-mcp-launcher.properties') }
+    property 'main-class', 'com.ramussoft.mcp.RamusMcpServer'
+    property 'main-jar', 'ramus.jar'
+    property 'win-console', 'true'
+    property 'description', "${appDisplayName} MCP server"
+}
+
 tasks.register('jpackageDmg') {
     group = 'distribution'
     description = 'Runs jpackage to produce the DMG.'
-    dependsOn 'prepareJpackageInput', 'makeIcns', 'jlinkImage'
+    dependsOn 'prepareJpackageInput', 'makeIcns', 'jlinkImage', 'prepareMacFileAssociations', 'prepareMcpLauncher'
 
     def services = objects.newInstance(PackagingServices)
     def onMac = isMacOs
@@ -401,10 +440,15 @@ tasks.register('jpackageDmg') {
     def icns = icnsFile
     def destDir = dmgDestDir
     def args = macJpackageArgs
+    def associations = tasks.named('prepareMacFileAssociations')
+            .flatMap { it.destinationFile }
+    def mcpLauncher = tasks.named('prepareMcpLauncher').flatMap { it.destinationFile }
     def outDmg = dmgDestDir.file("${appName}-${appVersion}.dmg")
 
     inputs.dir(inputDir).withPropertyName('jpackageInput')
     inputs.file(icns).withPropertyName('icns')
+    inputs.file(associations).withPropertyName('fileAssociations')
+    inputs.file(mcpLauncher).withPropertyName('mcpLauncher')
     // files() rather than dir(): the image legitimately may not exist when jlink is disabled,
     // and an @InputDirectory fails validation on a missing path.
     inputs.files(imageDir).withPropertyName('runtimeImage')
@@ -442,6 +486,8 @@ tasks.register('jpackageDmg') {
             commandLine([new File(javaHome, 'bin/jpackage').absolutePath] + args +
                     ['--input', inputDir.get().asFile.absolutePath,
                      '--icon', icns.get().asFile.absolutePath,
+                     '--file-associations', associations.get().asFile.absolutePath,
+                     '--add-launcher', 'ramus-mcp=' + mcpLauncher.get().asFile.absolutePath,
                      '--runtime-image', runtimePath])
         }
     }
@@ -471,7 +517,7 @@ tasks.register('prepareWindowsFileAssociations', WriteProperties) {
 tasks.register('jpackageMsi') {
     group = 'distribution'
     description = 'Runs jpackage to produce the Windows MSI.'
-    dependsOn 'prepareJpackageInput', 'jlinkImage', 'prepareWindowsFileAssociations'
+    dependsOn 'prepareJpackageInput', 'jlinkImage', 'prepareWindowsFileAssociations', 'prepareMcpLauncher'
 
     def services = objects.newInstance(PackagingServices)
     def onWindows = isWindows
@@ -483,11 +529,13 @@ tasks.register('jpackageMsi') {
     def args = windowsJpackageArgs
     def associations = tasks.named('prepareWindowsFileAssociations')
             .flatMap { it.destinationFile }
+    def mcpLauncher = tasks.named('prepareMcpLauncher').flatMap { it.destinationFile }
     def outMsi = msiDestDir.file("${appDisplayName}-${appVersion}.msi")
 
     inputs.dir(inputDir).withPropertyName('jpackageInput')
     inputs.file(icon).withPropertyName('icon')
     inputs.file(associations).withPropertyName('fileAssociations')
+    inputs.file(mcpLauncher).withPropertyName('mcpLauncher')
     inputs.files(imageDir).withPropertyName('runtimeImage')
     inputs.property('jpackageArgs', args)
     inputs.property('packagingJavaHome', javaHomeP)
@@ -525,6 +573,7 @@ tasks.register('jpackageMsi') {
                     ['--input', inputDir.get().asFile.absolutePath,
                      '--icon', icon.asFile.absolutePath,
                      '--file-associations', associations.get().asFile.absolutePath,
+                     '--add-launcher', 'ramus-mcp=' + mcpLauncher.get().asFile.absolutePath,
                      '--runtime-image', runtimePath])
         }
     }

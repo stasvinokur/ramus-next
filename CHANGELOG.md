@@ -1,5 +1,114 @@
 # Changelog
 
+## 3.1.0
+
+Long-standing complaints from the original Ramus issue tracker, closed here. All 31 of
+those issues were read and checked against this code; fourteen needed nothing, because this
+fork had already closed them or the feature had been there all along.
+
+### Fixed
+
+- **Exporting diagrams as pictures could freeze the application and leave a picture that
+  will not open.** The export ran on a thread that caught only one kind of failure, so
+  anything else killed it silently: the progress window stayed up, the export dialog was
+  never released, and the application looked hung. Separately, the file was created before
+  anything had been drawn into it, so a failure left a zero-byte file with a valid
+  extension - and re-exporting after a failure **destroyed the previous good picture**,
+  because the old one was emptied before the new render was attempted. The picture is now
+  written beside the target and only takes its name once it is complete, so a failure leaves
+  the previous export untouched and tells you what went wrong.
+- **Arrows stopped being carried into child diagrams, permanently.** One exception during a
+  diagram switch left a re-entrancy flag stuck, after which every later navigation quietly
+  did nothing at all - which is why the workaround people found was to decompose again and
+  get a fresh panel.
+- **Reports could come back empty with no error.** Two separate causes. Links attached
+  through the arrow properties dialog carry a hidden status string, and the report looked
+  them up without it, so they were simply not found; the dialog stamps that string on every
+  link even when you type nothing, so this was the common case rather than a corner one. And
+  an activity whose decomposition held only an external reference was mistaken for a
+  decomposed one and dropped from every report except the All… ones.
+- **IDL export wrote coordinates in whatever format the machine's language used.** A
+  comma-decimal locale produced `(0,123;0,456)` where another machine produced
+  `(0.123,0.456)`. Ramus read both, so this was invisible until the file reached any other
+  tool. Export is now identical everywhere; reading still accepts both, so old files open.
+- **57 corrections to the interface text - this time in Russian.** The previous release fixed
+  the English. Nothing had ever proofread the Russian, and since this fork makes Russian the
+  default for everyone, its mistakes were what everyone saw: two different settings shared
+  one label, a chart type was in the wrong gender, one string was still Ukrainian, and a
+  font in italic printed as `Arial 12 null`. Six missing entries were added and three
+  lookups pointed at the wrong place - one of which left a dialog with no title at all.
+- A menu whose text was missing came out blank rather than falling back to something
+  readable, and at the top level it could stop the menu bar from being built at all.
+
+### macOS
+
+- **Double-clicking a model in Finder now opens it.** The application never told macOS it
+  could open `.rsf` files, so a double-click did nothing, while the same thing worked on
+  Windows.
+- **Quit from the application menu no longer discards unsaved work.** It now goes through
+  exactly the same path as closing the window, so it asks about unsaved changes and shuts
+  the model down cleanly.
+- The window icon is sharp on a high-resolution display. It was a single 32-pixel bitmap.
+
+### AI agents can read and edit a model
+
+The installer now carries a second program beside the application: an
+[MCP](https://modelcontextprotocol.io) server, with its own copy of Java, that serves Ramus
+models to an AI agent. Point Claude at it and it can list the catalogs and their elements,
+walk the IDEF0 tree with its codes, read a diagram's arrows by role, run report queries in
+the language the report editor uses, look at a rendered diagram, edit the catalogs, and
+**build the diagrams themselves** - a context diagram with its border arrows, and the
+decompositions below it. See [docs/mcp.md](docs/mcp.md).
+
+**The agent chooses the file.** No model is named in the configuration: it lists what is in a
+directory, opens one, creates new ones - IDEF0, DFD or DFDS - saves a copy elsewhere, and
+deletes. One model is open at a time and `open_model` switches; switching writes out anything
+unsaved first and says which file it wrote. There is no sandbox, and deletion is real - the
+one check is that the target really is a Ramus model, read as an archive rather than trusted
+by its extension.
+
+**It draws.** An activity or an arrow is not only a row - it also carries the coordinates and
+geometry that the drawing panel produces, and writing those from outside is the way to end up
+with a model that opens with an empty diagram. So nothing here writes them: the server runs
+the application's own drawing panel without a window, exactly as the rendering already does,
+and lets it produce the geometry. Boxes are sized to fit their names and laid out on the
+IDEF0 diagonal. Decomposing behaves as it does in the application, including the part that
+is easy to get wrong: the arrows of the diagram above arrive with one end loose, and drawing
+one of them by name connects that loose end rather than adding a second arrow with the same
+name.
+
+A model built this way also opens on its diagram, which took finding: the application does
+not decide what to show from the model at all - a file carries a list of the diagrams that
+were open when it was last saved and replays it. A file that had never been through the
+application had no such list, so a model that was correct in every field opened on an empty
+canvas. Saving now leaves that list behind; a file the application saved keeps the tabs the
+person had open.
+
+What it does not do is route arrows or place their names. Structurally everything is where it
+was put - every arrow attached to the side it was given - but a diagram straight from an
+agent is a draft that wants tidying by hand.
+
+Four things protect the model. A backup is written beside it before the first change, not
+before the first save. A save goes through a temporary file, so a full disk leaves the model
+that was there. Writing is refused while the same model is open in the application, because
+a `.rsf` is never locked and the last save would otherwise win silently. And each change is
+one transaction, so what an agent did is one press of Undo.
+
+### Documentation
+
+- **How an agent talks to a model is written down** in [docs/mcp.md](docs/mcp.md).
+- **How to write a report is written down**, in [docs/report-queries.md](docs/report-queries.md):
+  the query language, the complete keyword table in English and Russian, and the fact that
+  keywords are not tied to the interface language. It also explains why the sample reports
+  that ship with the application do not run - both English ones use a keyword that was
+  renamed years ago, and three Russian ones use a Cyrillic spelling that has never existed.
+
+### Housekeeping
+
+- 817 lines of menu code that nothing could reach were removed from one file, along with a
+  class and a resource bundle that nothing loaded.
+
+
 ## 3.0.0
 
 The first release of Ramus Next, a continuation of [Ramus](https://ramussoftware.com/) by Vitaliy

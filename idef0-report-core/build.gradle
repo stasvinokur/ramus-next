@@ -11,3 +11,9 @@ dependencies {
     implementation project(':idef0-core')
     testImplementation 'junit:junit:4.13.2'
 }
+
+// junit was declared here before the module had any tests. Gradle no longer picks a test
+// framework by default, so without this the test task compiles the sources and runs none.
+tasks.named('test') {
+    useJUnit()
+}

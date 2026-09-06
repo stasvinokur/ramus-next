@@ -822,7 +822,17 @@ public class IDLImporter extends IDL {
         return sb.toString();
     }
 
-    private FloatPoint toPoint(String coordinates) {
+    /**
+     * Reads a coordinate pair in either spelling: the dot-decimal one this application now
+     * always writes, and the comma-decimal one it used to write on a machine whose locale
+     * put a comma in a number, which is signalled by the pair separator being a semicolon.
+     * The tolerance is deliberate - files written by older builds have to keep opening.
+     *
+     * <p>
+     * Package-private rather than private so a test can check it against what
+     * {@code IDLExporter.toCoortinate} produces.
+     */
+    FloatPoint toPoint(String coordinates) {
         coordinates = removeNs(coordinates);
         String left;
         String right;

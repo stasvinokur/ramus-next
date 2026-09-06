@@ -343,7 +343,11 @@ public class IDLExporter extends IDL {
         }
     }
 
-    private String toCoortinate(double x, double y) {
+    /**
+     * Package-private rather than private so a test can hold the exporter and the importer
+     * to the same string, which is the only place the two agree on a format.
+     */
+    String toCoortinate(double x, double y) {
         final double w = WIDTH;
         final double h = HEIGHT;
         String p1 = numberFormat.format((float) (x / w) + X_ADD);

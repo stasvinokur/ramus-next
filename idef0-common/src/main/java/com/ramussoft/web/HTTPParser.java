@@ -1414,10 +1414,18 @@ public class HTTPParser extends Servlet {
                         + parent.getGlobalId().toString());
                 htmlStream.println(RES.getString("oneLevelTop"));
                 printEndATeg();
-                // printStartATeg("idef0/index.html?id="
-                // + dataPlugin.getBaseFunction().getGlobalId().toString());
-                htmlStream.println(RES.getString("contents"));
-                printEndATeg();
+                // The opening tag was commented out and the closing one left behind, so
+                // every exported diagram page carried a stray </a> and its Contents text
+                // was not a link at all. That is also why nobody noticed the Russian
+                // translation of this key was wrong for years - it pointed at the same
+                // place as the footer link three lines of markup away.
+                Function base = dataPlugin.getBaseFunction();
+                if (base != null) {
+                    printStartATeg("idef0/index.html?id="
+                            + base.getGlobalId().toString());
+                    htmlStream.println(RES.getString("contents"));
+                    printEndATeg();
+                }
             }
 
             if (ouner != null) {

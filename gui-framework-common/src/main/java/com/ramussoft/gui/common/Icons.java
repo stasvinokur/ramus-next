@@ -88,6 +88,65 @@ public final class Icons {
     }
 
     /**
+     * The classpath path of the application icon, at 256 pixels.
+     */
+    private static final String APPLICATION_ICON = "/com/ramussoft/gui/app-icon.png";
+
+    /**
+     * The sizes a window manager picks between. 16 to 48 are the small slots - a title bar, a
+     * task switcher - and 256 is what a Retina display or a large taskbar asks for.
+     */
+    private static final int[] WINDOW_ICON_SIZES = {16, 20, 24, 32, 48, 64, 128, 256};
+
+    private static java.util.List<java.awt.Image> windowIcons;
+
+    /**
+     * The application icon at every size a window will ask for, for
+     * {@code Window.setIconImages}.
+     *
+     * <p>
+     * Both call sites used to do {@code Toolkit.getDefaultToolkit().getImage(getResource(
+     * "/com/ramussoft/gui/application.png"))} and hand the single 32-pixel result to
+     * {@code setIconImage}. That is one bitmap for every slot there is, so it was doubled by
+     * the compositor on a high-resolution display and downsampled without care in the small
+     * ones. Handing over a list instead lets the window manager choose, and every entry is
+     * rendered from the 256-pixel source rather than from the 32-pixel one.
+     *
+     * <p>
+     * Rendered into a {@link java.awt.image.BufferedImage} rather than through
+     * {@code getScaledInstance}, whose lazily-sized result can report a width of -1 to
+     * whoever asks first. Computed once: this is called per window, and the answer never
+     * changes.
+     *
+     * @return the icons, or an empty list if the source is missing - a window without an
+     * icon is a great deal better than a window that fails to open.
+     */
+    public static synchronized java.util.List<java.awt.Image> windowIcons() {
+        if (windowIcons != null)
+            return windowIcons;
+        ImageIcon source = image(APPLICATION_ICON);
+        java.util.List<java.awt.Image> icons = new java.util.ArrayList<java.awt.Image>();
+        if (source != null)
+            for (int size : WINDOW_ICON_SIZES)
+                icons.add(render(source.getImage(), size));
+        windowIcons = java.util.Collections.unmodifiableList(icons);
+        return windowIcons;
+    }
+
+    private static java.awt.image.BufferedImage render(java.awt.Image source, int size) {
+        java.awt.image.BufferedImage out = new java.awt.image.BufferedImage(
+                size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = out.createGraphics();
+        g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
+                java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+        g.drawImage(source, 0, 0, size, size, null);
+        g.dispose();
+        return out;
+    }
+
+    /**
      * Shared by both accessors, which is the point: the previous version had {@code image}
      * read the cache but never write to it, so a path only ever asked for through it was
      * decoded again on every call - and both {@code RowTreeTable} and {@code QualifierTable}

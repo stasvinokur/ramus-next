@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.MessageFormat;
 
 import javax.swing.AbstractAction;
@@ -233,55 +234,72 @@ public class ExportToImagesDialog extends BaseDialog {
 
         final BusyDialog dialog = new BusyDialog(this, ResourceLoader.getString("ExportingBusy"));
 
+        // Shown before the worker starts rather than from a runnable queued after it. The
+        // busy dialog is modeless, so this returns immediately, and doing it here removes
+        // the race that let a fast export queue its hide before this show ever ran.
+        dialog.setVisible(true);
+
         Thread export = new Thread("Export-to-images") {
             @Override
             public void run() {
-                int i = 0;
-                int[] js = chackedPanel.getSelected();
-                for (Function f : chackedPanel.getSelectedFunctions()) {
-                    try {
+                Throwable failure = null;
+                try {
+                    int i = 0;
+                    int[] js = chackedPanel.getSelected();
+                    for (Function f : chackedPanel.getSelectedFunctions()) {
                         String prefix = Integer.toString(js[i] + 1);
                         while (prefix.length() < 2)
                             prefix = "0" + prefix;
                         exportToFile(dir, f, prefix + "_");
                         i++;
-                    } catch (IOException e) {
-                        SwingUtilities.invokeLater(new Runnable() {
-
-                            @Override
-                            public void run() {
-                                dialog.setVisible(false);
-                            }
-                        });
-                        JOptionPane.showMessageDialog(
-                                ExportToImagesDialog.this, e
-                                        .getLocalizedMessage());
-                        if (Metadata.DEBUG)
-                            e.printStackTrace();
-                        return;
                     }
+                } catch (Throwable t) {
+                    // Everything, not only IOException. The whole diagram is rendered on
+                    // this thread, and an unchecked throw used to kill it silently: the
+                    // busy dialog was never hidden and this modal dialog was never
+                    // released, which is what "the program just freezes" was.
+                    failure = t;
                 }
+
+                final Throwable reported = failure;
+                // Every one of these touches Swing, so none of them may run here. The old
+                // code showed its message dialog straight from this thread.
                 SwingUtilities.invokeLater(new Runnable() {
 
                     @Override
                     public void run() {
                         dialog.setVisible(false);
+                        dialog.dispose();
+                        if (reported == null) {
+                            Options.setString(LAST_IMG_EXPORT_DIRECTORY,
+                                    directory.getText());
+                            ExportToImagesDialog.super.onOk();
+                            return;
+                        }
+                        if (Metadata.DEBUG)
+                            reported.printStackTrace();
+                        // The export dialog is deliberately left open, as it already was
+                        // for an IOException, so the selection is not lost on a retry.
+                        JOptionPane.showMessageDialog(ExportToImagesDialog.this,
+                                describe(reported));
                     }
                 });
-                Options.setString(LAST_IMG_EXPORT_DIRECTORY, directory
-                        .getText());
-                ExportToImagesDialog.super.onOk();
             }
         };
         export.start();
-        SwingUtilities.invokeLater(new Runnable() {
+    }
 
-            @Override
-            public void run() {
-                if (ExportToImagesDialog.this.isVisible())
-                    dialog.setVisible(true);
-            }
-        });
+    /**
+     * An unchecked failure often carries no message at all - a NullPointerException's is
+     * null - and a dialog reading "null" is exactly the kind of thing this change exists
+     * to stop. Fall back to the exception's own description so there is always something
+     * to report, however technical.
+     */
+    private static String describe(Throwable t) {
+        String message = t.getLocalizedMessage();
+        if ((message != null) && (message.trim().length() > 0))
+            return message;
+        return t.toString();
     }
 
     protected void exportToFile(File dir, Function f, String prefix)
@@ -295,8 +313,53 @@ public class ExportToImagesDialog extends BaseDialog {
                 dataPlugin);
         File file = new File(dir, prefix + MovingFunction.getIDEF0Kod((com.ramussoft.database.common.Row) f)
                 + type.getExtension());
-        try (FileOutputStream stream = new FileOutputStream(file)) {
-            painter.writeToStream(stream, type.getFormat());
+        writeAtomically(file, stream -> painter.writeToStream(stream, type.getFormat()));
+    }
+
+    /**
+     * Something that renders into a stream. It may fail in any way at all, which is the
+     * whole reason this exists.
+     */
+    interface StreamWriter {
+
+        void writeTo(OutputStream stream) throws IOException;
+    }
+
+    /**
+     * Renders into a neighbouring temporary file and only takes the target name once the
+     * write has finished.
+     *
+     * <p>
+     * Upstream issue #24 is reported as "the first picture cannot be opened". The stream
+     * used to be opened directly on the target before anything was drawn, while the actual
+     * encode is the last statement of {@code PIDEF0painter.writeImage} - so any failure
+     * while painting left a zero-byte file carrying a valid image extension. A file that
+     * does not exist is a far better outcome than a file that looks like an image and is
+     * not, because the first is visible and the second is not.
+     *
+     * <p>
+     * Package-private so it can be tested without a dialog, a model or a graphics context.
+     */
+    static void writeAtomically(File target, StreamWriter writer) throws IOException {
+        File directory = target.getParentFile();
+        File partial = File.createTempFile(target.getName(), ".part", directory);
+        boolean written = false;
+        try {
+            try (FileOutputStream stream = new FileOutputStream(partial)) {
+                writer.writeTo(stream);
+            }
+            written = true;
+        } finally {
+            if (!written)
+                partial.delete();
+        }
+        if (target.exists() && !target.delete()) {
+            partial.delete();
+            throw new IOException("Cannot replace " + target.getAbsolutePath());
+        }
+        if (!partial.renameTo(target)) {
+            partial.delete();
+            throw new IOException("Cannot write " + target.getAbsolutePath());
         }
     }
 

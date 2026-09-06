@@ -56,7 +56,7 @@ public class ResourceLoader {
                 UIManager.put("FileChooser.newFolderActionLabelText",
                         "Новая папка");
                 UIManager.put("FileChooser.newFolderToolTipText",
-                        "Создать новою папку");
+                        "Создать новую папку");
                 UIManager.put("FileChooser.refreshActionLabelText", "Обновить");
                 UIManager.put("FileChooser.upFolderAccessibleName", "Наверх");
                 UIManager.put("FileChooser.upFolderToolTipText",
@@ -67,7 +67,7 @@ public class ResourceLoader {
                 UIManager.put("FileChooser.fileNameLabelText", "Название файла:");
                 UIManager.put("FileChooser.filesOfTypeLabelText", "Тип файла:");
                 UIManager.put("FileChooser.upFolderToolTipText",
-                        "Вернутся ввех на один уровень");
+                        "Вернуться на один уровень вверх");
                 UIManager.put("FileChooser.upFolderAccessibleName", "Наверх");
                 UIManager.put("FileChooser.homeFolderToolTipText", "Домой");
                 UIManager.put("FileChooser.homeFolderAccessibleName", "Домой");
@@ -84,18 +84,18 @@ public class ResourceLoader {
                 UIManager.put("FileChooser.detailsViewButtonAccessibleName",
                         "Детально");
 
-                UIManager.put("FileChooser.saveInLabelText", "Сохранено в:");
+                UIManager.put("FileChooser.saveInLabelText", "Сохранить в:");
                 UIManager.put("FileChooser.newFolderErrorText",
                         "Ошибка создания новой папки");
                 UIManager.put("FileChooser.newFolderErrorSeparator",
-                        "В имене папки существуют недопустимые символы");
-                UIManager.put("FileChooser.fileDescriptionText", "Описание файла");
+                        "Имя папки содержит недопустимые символы");
+                UIManager.put("FileChooser.fileDescriptionText", "Файл");
                 UIManager.put("FileChooser.directoryDescriptionText",
-                        "Описание папки");
+                        "Папка");
                 UIManager.put("FileChooser.saveButtonText", "Сохранить");
                 UIManager.put("FileChooser.openButtonText", "Открыть");
                 UIManager.put("FileChooser.saveDialogTitleText",
-                        "Сохранения файла");
+                        "Сохранение файла");
                 UIManager
                         .put("FileChooser.openDialogTitleText", "Открытие...");
                 UIManager.put("FileChooser.cancelButtonText", "Отменить");

@@ -63,6 +63,18 @@ invokes `candle.exe` and `light.exe` by name and WiX 4 and 5 do not provide them
 per-machine install into `Program Files`, with a Start menu entry and the `.rsf` association
 registered.
 
+## Documentation
+
+Reports are the one feature nothing in the interface explains, so there is a page for them:
+[Writing a report](docs/report-queries.md) - the query language, the full keyword table in
+English and Russian, and the reason the shipped sample reports do not run.
+
+AI agents can read a model, edit it and draw its diagrams through the bundled MCP server:
+[Giving an AI agent access to a model](docs/mcp.md) - how to point Claude at a `.rsf`
+file, what the agent can do, and what it deliberately cannot.
+
+The original authors’ manuals ship with the application under `dest/doc`.
+
 ## License
 
 Ramus Next is free software, released under the [GNU General Public License, version 3](https://www.gnu.org/licenses/gpl-3.0.en.html). The full text is in [LICENSE](LICENSE).

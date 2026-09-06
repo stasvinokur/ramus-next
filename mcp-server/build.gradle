@@ -1,0 +1,69 @@
+plugins {
+    id 'ramus.java-conventions'
+    id 'application'
+    // Same version and the same reason as local-client: Shadow 9 flipped duplicatesStrategy
+    // to INCLUDE, and this jar merges a dozen project jars plus the MCP SDK and Jackson.
+    id 'com.gradleup.shadow' version '8.3.11'
+}
+
+dependencies {
+    // The model itself. Deliberately NOT local-client: that module is the desktop
+    // application, and this server has no interface at all.
+    implementation project(':common')
+    implementation project(':core')
+    implementation project(':data-framework-common')
+    implementation project(':database-storage')
+    implementation project(':core-simple-attributes')
+    implementation project(':idef0-core')
+    implementation project(':idef0-common')
+    // For one class: com.ramussoft.gui.common.event.ActionEvent, which is what the
+    // application's "which diagrams were open" record is a list of. idef0-common keeps
+    // gui-framework-common on its own implementation configuration, so it does not reach
+    // here on its own.
+    implementation project(':gui-framework-common')
+    implementation project(':idef0-report-core')
+    implementation project(':report-core')
+
+    // Declared here for the same reason local-client declares it: the modules that use H2
+    // keep it on their own implementation configuration, so it does not reach a consumer
+    // transitively. Without it the model opens as far as "No suitable driver found".
+    implementation 'com.h2database:h2:2.3.232'
+
+    // The Model Context Protocol server SDK. Verified before adopting: 2.0.1 is compiled
+    // to class file 61, i.e. Java 17, which is what options.release pins this build to.
+    implementation 'io.modelcontextprotocol.sdk:mcp:2.0.1'
+
+    // slf4j has no binding otherwise, and its complaint about that goes to stderr on first
+    // use. For a stdio server stderr is the log channel and stdout carries the protocol, so
+    // a stray line there is survivable - but there is no reason to emit one.
+    runtimeOnly 'org.slf4j:slf4j-nop:2.0.16'
+
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.named('test') {
+    useJUnit()
+}
+
+application {
+    mainClass = 'com.ramussoft.mcp.RamusMcpServer'
+    applicationName = 'ramus-mcp'
+}
+
+shadowJar {
+    archiveBaseName.set('ramus-mcp')
+    archiveClassifier.set('')
+    archiveVersion.set('')
+
+    // The SDK finds its JSON mapper and schema validator through
+    // META-INF/services/io.modelcontextprotocol.json.McpJsonMapperSupplier, and this
+    // application finds its attribute plugins the same way. Without this merge the fat jar
+    // keeps one service file and drops the rest, and the server dies on startup with no
+    // mapper.
+    mergeServiceFiles()
+
+    manifest {
+        attributes 'Main-Class': 'com.ramussoft.mcp.RamusMcpServer'
+    }
+}
+

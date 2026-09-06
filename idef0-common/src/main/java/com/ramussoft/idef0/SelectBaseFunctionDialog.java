@@ -25,7 +25,10 @@ public class SelectBaseFunctionDialog extends BaseDialog {
 
     public SelectBaseFunctionDialog(GUIFramework framework) {
         super(framework.getMainFrame(), true);
-        setTitle(GlobalResourcesManager.getString("SelectModel"));
+        // SelectModel lives in the clasificators bundle, which only ResourceLoader
+        // reads. Asking GlobalResourcesManager for it returned null, so this dialog
+        // opened with no title at all.
+        setTitle(ResourceLoader.getString("SelectModel"));
         result = null;
         final List<Qualifier> base = IDEF0Plugin.getBaseQualifiers(framework
                 .getEngine());

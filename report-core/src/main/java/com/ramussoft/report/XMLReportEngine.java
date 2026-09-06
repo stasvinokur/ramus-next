@@ -204,7 +204,7 @@ public class XMLReportEngine extends ReportEngine {
             }
             return new SerialNumber(rows.getNumber());
         }
-        if (KEYWORDS.hasName("CodeIDEF0	", connectionName))
+        if (KEYWORDS.hasName("CodeIDEF0", connectionName))
             return new Code(row.getElement(), getIDEF0Kod(row));
         if (KEYWORDS.hasName("QualifierName", connectionName))
             return row.getQualifier();

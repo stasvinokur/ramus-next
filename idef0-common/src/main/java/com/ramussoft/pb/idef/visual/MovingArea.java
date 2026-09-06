@@ -1513,53 +1513,63 @@ public class MovingArea extends JPanel {
         if (rec)
             return;
         rec = true;
-        if (panel != null) {
-            boolean locked;
-            if (activeFunction.equals(lockedFunction))
-                locked = true;
-            else
-                locked = activeFunction.lock();
-            refactor.loadFromFunction(activeFunction, false);
-            if (!activeFunction.equals(lockedFunction)) {
-                if (lockedFunction != null)
-                    lockedFunction.unlock();
-                if (locked)
-                    lockedFunction = activeFunction;
+        // The body below reaches SectorRefactor.loadFromFunction, whose own try catches
+        // only IOException, and the border-creation calls inside it are known to throw -
+        // createPainted catches NullPointerException around the very same calls. Without
+        // this finally, one escape leaves rec stuck at true for the life of this
+        // MovingArea, after which every navigation returns at the guard above without
+        // reloading and the diagram silently stops refreshing.
+        boolean updateListeneres = false;
+        try {
+            if (panel != null) {
+                boolean locked;
+                if (activeFunction.equals(lockedFunction))
+                    locked = true;
                 else
-                    lockedFunction = null;
+                    locked = activeFunction.lock();
+                refactor.loadFromFunction(activeFunction, false);
+                if (!activeFunction.equals(lockedFunction)) {
+                    if (lockedFunction != null)
+                        lockedFunction.unlock();
+                    if (locked)
+                        lockedFunction = activeFunction;
+                    else
+                        lockedFunction = null;
+                }
+                panel.setMovingActiveFunction(activeFunction);
+                if (getState() == END_POINT_ADDING)
+                    setState(START_POINT_ADDING);
+                if ((getState() == END_POINT_CHANGING)
+                        || (getState() == START_POINT_CHANGING)
+                        || (getState() == FUNCTION_ADDING_STATE)
+                        || (getState() == TEXT_ADDING_STATE))
+                    cancelAdding();
+            } else
+                refactor.loadFromFunction(activeFunction, false);
+
+            updateListeneres = this.activeFunction != activeFunction;
+
+            this.activeFunction = activeFunction;
+
+            if (panel != null) {
+                panel.getFrame().propertyChange(
+                        MChangeListener.REFRESH_FUNCTION_IN_TREE, activeFunction);
             }
-            panel.setMovingActiveFunction(activeFunction);
-            if (getState() == END_POINT_ADDING)
-                setState(START_POINT_ADDING);
-            if ((getState() == END_POINT_CHANGING)
-                    || (getState() == START_POINT_CHANGING)
-                    || (getState() == FUNCTION_ADDING_STATE)
-                    || (getState() == TEXT_ADDING_STATE))
-                cancelAdding();
-        } else
-            refactor.loadFromFunction(activeFunction, false);
 
-        boolean updateListeneres = this.activeFunction != activeFunction;
-
-        this.activeFunction = activeFunction;
-
-        if (panel != null) {
-            panel.getFrame().propertyChange(
-                    MChangeListener.REFRESH_FUNCTION_IN_TREE, activeFunction);
+            setPanels();
+            if (panel != null) {
+                setActiveObject(null);
+                final java.awt.Point mp = getMousePosition();
+                if (mp != null)
+                    moveMoveListener.mouseMoved(new MouseEvent(this, 0, 0, 0,
+                            mp.x, mp.y, 0, false));
+            }
+            functionIndex = dataPlugin.indexOfFunction(activeFunction);
+            if (functionIndex < 0)
+                functionIndex = 0;
+        } finally {
+            rec = false;
         }
-
-        setPanels();
-        if (panel != null) {
-            setActiveObject(null);
-            final java.awt.Point mp = getMousePosition();
-            if (mp != null)
-                moveMoveListener.mouseMoved(new MouseEvent(this, 0, 0, 0, mp.x,
-                        mp.y, 0, false));
-        }
-        functionIndex = dataPlugin.indexOfFunction(activeFunction);
-        if (functionIndex < 0)
-            functionIndex = 0;
-        rec = false;
         if (updateListeneres) {
             ActiveFunctionEvent event = new ActiveFunctionEvent(activeFunction);
             for (ActiveFunctionListener l : getActiveFunctionListeners())
@@ -3224,7 +3234,11 @@ public class MovingArea extends JPanel {
                                     + " "
                                     + ResourceLoader
                                     .getString("Replace.Quation"),
-                            ResourceLoader.getString("worning"),
+                            // "worning" is defined in no bundle, so this dialog had no
+                            // title at all. Pointing at the key that exists beats adding a
+                            // third spelling: the bundle already carries both "warning"
+                            // and the equally misspelled "worninig", with the same value.
+                            ResourceLoader.getString("warning"),
                             JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
                         TemplateFactory.removeUserTemplate(name);
                         TemplateFactory.saveTemplate(dataPlugin,

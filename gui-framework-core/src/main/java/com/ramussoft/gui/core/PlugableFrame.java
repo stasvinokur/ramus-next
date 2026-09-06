@@ -2,7 +2,6 @@ package com.ramussoft.gui.core;
 
 import java.awt.FlowLayout;
 
-import java.awt.Toolkit;
 import java.util.ArrayList;
 import java.util.Hashtable;
 import java.util.List;
@@ -24,6 +23,7 @@ import javax.swing.JToolBar;
 import com.ramussoft.gui.common.ActionDescriptor;
 import com.ramussoft.gui.common.ActionLevel;
 import com.ramussoft.gui.common.GlobalResourcesManager;
+import com.ramussoft.gui.common.Icons;
 import com.ramussoft.gui.common.StringGetter;
 import com.ramussoft.gui.common.ViewPlugin;
 
@@ -52,8 +52,10 @@ public class PlugableFrame extends JFrame {
 
     public PlugableFrame(List<ViewPlugin> plugins) {
         this.plugins = plugins;
-        this.setIconImage(Toolkit.getDefaultToolkit().getImage(
-                getClass().getResource("/com/ramussoft/gui/application.png")));
+        // A list, not one image: the window manager picks the size it needs, and every
+        // entry is rendered from the 256-pixel source. A single 32-pixel bitmap was
+        // doubled by the compositor on a high-resolution display.
+        this.setIconImages(Icons.windowIcons());
         init();
     }
 
@@ -173,11 +175,28 @@ public class PlugableFrame extends JFrame {
 
     }
 
+    /**
+     * Translates one segment of a menu path, falling back to the resource key when no
+     * bundle defines it - exactly what the toolbar branch of addAction already does.
+     *
+     * <p>
+     * Without the fallback a missing key yields null, and the null travels: it becomes
+     * {@code new JMenu(null)} in createJMenu and initMenu, a menu with no visible name
+     * whose items still work. At top level it is worse than invisible, because createJMenu
+     * finds an existing menu with {@code menus.get(i).getText().equals(s)}, which throws
+     * NullPointerException on the null title. Package-private so it can be tested.
+     */
+    static String menuName(ViewPlugin plugin, String segment) {
+        String key = "Menu." + segment;
+        String name = plugin.getString(key);
+        return name == null ? key : name;
+    }
+
     @SuppressWarnings("unchecked")
     private void addTreeItem(String menu, Action action, ViewPlugin plugin) {
         String[] strings = menu.split("/");
         for (int i = 0; i < strings.length; i++) {
-            strings[i] = plugin.getString("Menu." + strings[i]);
+            strings[i] = menuName(plugin, strings[i]);
         }
 
         TreeList map = mainMenu;

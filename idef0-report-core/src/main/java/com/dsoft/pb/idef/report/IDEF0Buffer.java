@@ -89,8 +89,38 @@ public class IDEF0Buffer {
     private void addRowFunction(Row row, Row function) {
         if (row == null)
             return;
-        Hashtable<Row, Boolean> rows = getFunctionsBuff(row);
+        Hashtable<Row, Boolean> rows = getFunctionsBuff(keyOf(row));
         rows.put(function, Boolean.TRUE);
+    }
+
+    /**
+     * The map key for a catalog element, with the link's status taken off it.
+     *
+     * <p>
+     * report.data.Row folds elementStatus into both equals and hashCode, and the rows this
+     * buffer stores carry the status of the link they came from, while the rows a report
+     * looks up with are the plain rows of a catalog and carry none. So a stored link and
+     * the query that should find it hashed to different buckets, and the query returned an
+     * empty result with no error - the failure a user reports as "the report is empty and I
+     * cannot see what is wrong with it".
+     *
+     * <p>
+     * That is not a corner case. SectorRowsEditor stamps a status of
+     * {@code <sectorId> + "3|" + text} onto every row attached through the arrow properties
+     * dialog even when the user typed nothing, and Row.getName hides everything before the
+     * bar - so the status is both invisible and almost always present.
+     *
+     * <p>
+     * Normalising is the right repair rather than putting the status on the lookup row: the
+     * report is asking which functions an element is connected to, and the answer does not
+     * depend on the words someone typed next to one of those connections. Elements attached
+     * under different statuses now merge into the one answer, which is what the question
+     * means.
+     */
+    private Row keyOf(Row row) {
+        Row key = row.createCopy();
+        key.setElementStatus(null);
+        return key;
     }
 
     private Hashtable<Row, Boolean> getStreamsBuff(Row function) {
@@ -148,14 +178,21 @@ public class IDEF0Buffer {
         for (com.ramussoft.database.common.Row row : f.getChildren()) {
             Integer type = (Integer) row.getAttribute(IDEF0Plugin
                     .getFunctionTypeAttribute(f.getEngine()));
-            if (type != null && type.intValue() <= 1001)
+            // Strictly less than, which is the bound IDEF0FunctionFilter uses when it
+            // decides what counts as a function at all. 1001 is TYPE_EXTERNAL_REFERENCE:
+            // counting it as a child made a leaf function whose decomposition holds only an
+            // external reference look decomposed, and every keyword except the All* ones
+            // emits only functions with no children - so the function silently vanished
+            // from the report. The old bound was not even self-consistent: 1002 and 1003,
+            // the data store and the DFDS role, were already excluded.
+            if (type != null && type.intValue() < 1001)
                 c++;
         }
         return c;
     }
 
     public Rows getFunctions(Row row) {
-        Rows rows = rowFunctions.get(row);
+        Rows rows = rowFunctions.get(keyOf(row));
         if (rows == null)
             return new Rows(functions, data, false);
         Rows clone = (Rows) rows.clone();

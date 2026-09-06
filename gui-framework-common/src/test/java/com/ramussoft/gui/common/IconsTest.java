@@ -275,4 +275,52 @@ public class IconsTest {
                 + "so they show stale artwork or fail outright - route them through Icons: "
                 + stale, 0, stale.size());
     }
+
+    /**
+     * The window icon a title bar, a task switcher and a taskbar all draw from.
+     *
+     * <p>It used to be one 32-pixel bitmap handed to setIconImage, so a high-resolution
+     * display doubled it and the small slots downsampled it without care. What matters is
+     * not that the list exists but that it reaches far enough up: a 2x display asking for a
+     * 32-pixel slot wants 64 real pixels, and one asking for a large taskbar wants more
+     * still, so the top of the range has to be well above the old 32.
+     */
+    @Test
+    public void theWindowIconIsOfferedAtEverySizeAWindowMightAskFor() {
+        java.util.List<java.awt.Image> icons = Icons.windowIcons();
+
+        assertTrue("the application icon must load at all", icons.size() > 1);
+
+        int largest = 0;
+        for (java.awt.Image icon : icons) {
+            int width = icon.getWidth(null);
+            assertEquals("window icons must be square", width, icon.getHeight(null));
+            largest = Math.max(largest, width);
+        }
+        assertTrue("the largest variant is " + largest + " pixels; a 32-pixel slot on a 2x "
+                + "display already needs 64, and this is what stops the compositor having to "
+                + "invent them", largest >= 256);
+    }
+
+    /**
+     * A blank icon loads without complaint and looks like no icon at all, which is why the
+     * sizes above are not enough on their own.
+     */
+    @Test
+    public void noWindowIconIsBlank() {
+        for (java.awt.Image icon : Icons.windowIcons()) {
+            int size = icon.getWidth(null);
+            java.awt.image.BufferedImage image = new java.awt.image.BufferedImage(
+                    size, size, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            java.awt.Graphics2D g = image.createGraphics();
+            g.drawImage(icon, 0, 0, null);
+            g.dispose();
+            int ink = 0;
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                    if ((image.getRGB(x, y) >>> 24) > 20)
+                        ink++;
+            assertTrue("the " + size + "-pixel window icon is blank", ink > size);
+        }
+    }
 }
