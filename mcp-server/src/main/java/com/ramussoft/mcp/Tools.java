@@ -73,6 +73,7 @@ final class Tools {
         RenderTools.register(server, json, workspace);
         WriteTools.register(server, json, workspace);
         DrawTools.register(server, json, workspace);
+        TitleTools.register(server, json, workspace);
     }
 
     // ------------------------------------------------------------------ tools

@@ -102,12 +102,20 @@ final class DiagramBuilder {
      * SimpleTemplate does for the starter diagrams.
      */
     Function addActivity(String name, Double x, Double y) {
+        return addActivity(name, x, y, null);
+    }
+
+    Function addActivity(String name, Double x, Double y, Integer fontSize) {
         refuseASecondBoxOnAContextDiagram();
         // The panel's own way of adding a box, so the font, the colours and the dates are
         // the ones the application would have written; createRow alone leaves all three
         // unset and the box comes out looking like nothing a user could have drawn.
         Function function = area.createFunctionalObject(0, 0, Function.TYPE_PROCESS, parent);
         function.setName(name);
+        // Before measuring, not after: the size of the box is decided by how big the name is
+        // written, and a box fitted to one font and drawn in another is fitted to nothing.
+        if (fontSize != null)
+            function.setFont(new Font(BOX_FONT_FAMILY, Font.PLAIN, fontSize));
 
         FRectangle rect = fitToName(function, name);
         double[] place = (x == null || y == null) ? nextOnTheDiagonal(rect) : new double[]{x, y};
@@ -172,6 +180,8 @@ final class DiagramBuilder {
         rect.setHeight(Math.min(Math.max(height, MINIMUM_HEIGHT), maxBoxHeight()));
         return rect;
     }
+
+    private static final String BOX_FONT_FAMILY = "Dialog";
 
     private static final double MINIMUM_WIDTH = 108;
 
@@ -818,9 +828,20 @@ final class DiagramBuilder {
      * where the box was.
      */
     void setActivity(Function activity, String name, Double x, Double y,
-                     Double width, Double height) {
+                     Double width, Double height, Integer fontSize) {
         if (name != null)
             activity.setName(name);
+        if (fontSize != null) {
+            activity.setFont(new Font(BOX_FONT_FAMILY, Font.PLAIN, fontSize));
+            if (width == null && height == null) {
+                // A name that fitted at ten points does not fit at fourteen. Refitted unless
+                // the caller is setting the size itself in the same breath.
+                FRectangle fitted = fitToName(activity, activity.getName());
+                fitted.setX(activity.getBounds().getX());
+                fitted.setY(activity.getBounds().getY());
+                activity.setBounds(fitted);
+            }
+        }
         if (x == null && y == null && width == null && height == null)
             return;
         FRectangle rect = new FRectangle(activity.getBounds());
@@ -833,6 +854,56 @@ final class DiagramBuilder {
         if (height != null)
             rect.setHeight(height);
         activity.setBounds(rect);
+    }
+
+    /**
+     * Changes an arrow already drawn: its name, where its name sits, whether it has a tilde,
+     * and the size it is written in.
+     */
+    void setArrow(String name, String newName, Double labelX, Double labelY,
+                  Boolean tilde, Integer fontSize) {
+        PaintSector arrow = arrowNamed(name);
+        if (arrow == null)
+            throw new IllegalArgumentException("No arrow called \"" + name + "\" on this "
+                    + "diagram. get_diagram lists the arrows it has.");
+
+        if (newName != null)
+            arrow.getSector().setStream(stream(newName), ReplaceStreamType.CHILDREN);
+        if (fontSize != null) {
+            arrow.setFont(new Font(ARROW_FONT_FAMILY, Font.PLAIN, fontSize));
+            arrow.saveVisual();
+        }
+        if (tilde != null)
+            arrow.setShowTilda(tilde);
+
+        // The label may belong to another segment of the same flow, and then that is the one
+        // to move and the one to write.
+        MovingLabel label = labelOf(arrow);
+        PaintSector owner = arrow.getText() != null ? arrow : ownerOfLabel(arrow);
+        if (label != null && (labelX != null || labelY != null || fontSize != null)) {
+            area.stringBounder.setFont(owner == null ? arrow.getFont() : owner.getFont());
+            Rectangle2D needed = area.stringBounder.getLinesBounds(label.getText(),
+                    new Rectangle2D.Double(0, 0, MAX_LABEL_WIDTH, 0));
+            FRectangle was = label.getBounds();
+            label.setBounds(new FRectangle(labelX == null ? was.getX() : labelX,
+                    labelY == null ? was.getY() : labelY,
+                    needed.getWidth(), needed.getHeight()));
+        }
+
+        Engine engine = plugin.getEngine();
+        PaintSector.save(arrow, new DataLoader.MemoryData(), engine);
+        if (owner != null && owner != arrow)
+            PaintSector.save(owner, new DataLoader.MemoryData(), engine);
+    }
+
+    @SuppressWarnings("unchecked")
+    private PaintSector ownerOfLabel(PaintSector arrow) {
+        HashSet<PaintSector> group = new HashSet<PaintSector>();
+        arrow.getConnectedSector(group);
+        for (PaintSector sector : group)
+            if (sector.getText() != null)
+                return sector;
+        return null;
     }
 
     /**

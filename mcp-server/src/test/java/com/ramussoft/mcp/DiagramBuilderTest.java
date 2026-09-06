@@ -288,6 +288,61 @@ public class DiagramBuilderTest {
     }
 
     /**
+     * The name of an arrow, its zig-zag and the size it is written in all have to be IN the
+     * file. None of them were: the label was never made, so nothing about it was saved, and
+     * the panel invented one at the middle of the line on every open - which is what printed
+     * three names in one place. The font matters for the same reason: without it the reader's
+     * own setting is used and every label is re-measured and re-centred.
+     */
+    @Test
+    public void anArrowKeepsItsName_itsTildeAndItsFont() throws Exception {
+        Assume.assumeFalse(GraphicsEnvironment.isHeadless());
+
+        File file = new File(folder.getRoot(), "named.rsf");
+
+        try (ModelSession session = ModelSession.createNew(file)) {
+            Qualifier model = session.addModel("Модель", -1);
+            DataPlugin plugin = session.getDataPlugin(model);
+            DiagramBuilder context = new DiagramBuilder(session, model,
+                    plugin.getBaseFunction());
+            Function a0 = context.addActivity("Работа", null, null);
+            context.addArrow("Заявка", DiagramBuilder.End.frame(MovingPanel.LEFT),
+                    DiagramBuilder.End.on(a0, MovingPanel.LEFT), null, null, 8);
+            context.commit();
+            session.save();
+        }
+
+        try (ModelSession session = new ModelSession(file, true)) {
+            Qualifier model = IDEF0Plugin.getBaseQualifiers(session.getEngine()).get(0);
+            DataPlugin plugin = session.getDataPlugin(model);
+            Function base = plugin.getBaseFunction();
+
+            // Read the way the application reads it, not by poking at the row: the panel is
+            // what decides where a label ends up, and it is the thing that used to move it.
+            com.ramussoft.pb.idef.visual.MovingArea area = PIDEF0painter.createMovingArea(
+                    new Dimension(1600, 1200), plugin, base);
+            area.setActiveFunction(base);
+
+            com.ramussoft.pb.idef.elements.PaintSector arrow = null;
+            for (com.ramussoft.pb.idef.elements.PaintSector paint
+                    : area.getRefactor().getSectors())
+                if (paint.getSector() != null && "Заявка".equals(paint.getSector().getName()))
+                    arrow = paint;
+            assertTrue("the arrow is there", arrow != null);
+            assertTrue("it has a tilde", arrow.isShowTilda());
+            assertEquals("written in the size it was given", 8, arrow.getFont().getSize());
+
+            com.ramussoft.pb.idef.visual.MovingLabel label = arrow.getText();
+            assertTrue("it has a name of its own", label != null);
+            // The failure this pins: with nothing stored, the label is manufactured at the
+            // middle of the line, which is where all of them used to end up.
+            com.dsoft.pb.types.FloatPoint middle = arrow.getTildaPoint();
+            assertTrue("the name is off the line, not on it",
+                    Math.abs(label.getBounds().getY() - middle.getY()) > 2);
+        }
+    }
+
+    /**
      * One flow reaching three activities is one arrow that forks, not three arrows that share
      * a name. The difference is in the model: a fork is crosspoints and one stream element, and
      * a report reading it sees one thing arriving in three places.

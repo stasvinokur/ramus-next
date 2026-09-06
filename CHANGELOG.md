@@ -84,9 +84,29 @@ application had no such list, so a model that was correct in every field opened 
 canvas. Saving now leaves that list behind; a file the application saved keeps the tabs the
 person had open.
 
-What it does not do is route arrows or place their names. Structurally everything is where it
-was put - every arrow attached to the side it was given - but a diagram straight from an
-agent is a draft that wants tidying by hand.
+**Arrows are named the way a person names them.** Each one gets its name written clear of its
+own line and joined back to it by the zig-zag the notation asks for. That reads like
+decoration and is not: an arrow drawn from outside had no label object at all, so nothing
+about it was stored, and the panel manufactured one at the middle of the line on every open -
+three arrows into one side of a box printed three names in one place. The size is written into
+the file too, because a label takes its font from the sector and is re-measured and re-centred
+on open, so a layout computed on one machine only survives on another if the file says what it
+was computed for. Sizes can be set for boxes and for names.
+
+**One flow reaching several activities is one arrow that forks.** Naming an arrow as an end of
+add_arrow branches it through a crosspoint, so the segments share a single stream and a report
+sees one thing arriving in four places - which is what the diagram means. Several arrows with
+equal names look the same and are a different model.
+
+**The title block can be filled in**: project, author, dates, purpose, readers and the status
+marker, split as the application splits them - the model's own on one side, each sheet's on
+the other.
+
+What it does not do is route arrows. Lines cross on a busy diagram, and the label rules are
+this server's own rules of thumb, since nothing in Ramus lays labels out - a very long name or
+five arrows down one side will still want a hand. Structurally everything is where it was put,
+every arrow attached to the side it was given; a diagram straight from an agent is a good
+draft rather than a finished drawing.
 
 Four things protect the model. A backup is written beside it before the first change, not
 before the first save. A save goes through a temporary file, so a full disk leaves the model

@@ -56,7 +56,7 @@ one with `open_model`. Name a file anyway if you want it open from the start —
 
 Add `--read-only` when you want the agent to look but not touch. The tools that change
 anything are then not offered at all, rather than offered and refused: 12 tools instead of
-24.
+27.
 
 **One model is open at a time.** `open_model` switches. Comparing two means reading one,
 then opening the other.
@@ -108,23 +108,56 @@ then opening the other.
   activity you name as the parent, and it is created when that activity had none. Position
   is optional: without one the boxes step down the diagonal, which is how an IDEF0 diagram is
   read and how the activities get their numbers.
-- **`set_activity`** — move it, resize it, rename it.
-- **`add_arrow`** — an arrow with a name. Each end is either an activity with the role the
-  arrow plays there — `{"activity": 12, "role": "input"}` — or the edge of the page,
-  `{"border": true}`. An arrow leaves an output and arrives at an input, a control or a
+- **`set_activity`** — move it, resize it, rename it, change the size of its text.
+- **`add_arrow`** — an arrow with a name. Each end is one of three things: an activity with
+  the role the arrow plays there — `{"activity": 12, "role": "input"}` — the edge of the
+  page, `{"border": true}`, or an arrow already on the diagram, `{"arrow": "Standard"}`,
+  which **branches** it. An arrow leaves an output and arrives at an input, a control or a
   mechanism, so `from` takes the output end; a border end needs no side, it takes the one
   that matches the other end.
+- **`set_arrow`** — rename an arrow, move its name, turn its tilde on or off, change the size
+  it is written in.
 - **`remove_arrow`**, **`remove_activity`** — removing a box takes its arrows with it.
 
 Two arrows given the same name carry the same thing. That is not a convenience: one stream
 appearing on several diagrams is how a model says the same flow runs through them, and it is
 what the report queries follow.
 
+**One flow reaching several activities is a branch, not several arrows.** On one diagram,
+`{"arrow": "Standard"}` as an end forks the arrow already there: the segments share one
+stream and meet at crosspoints, so a report sees one thing arriving in four places. Four
+separate arrows with equal names look the same and mean something else. The mirror case — two
+outputs joining into one arrow — is the same call with the arrow named as the `to` end.
+
+**Names are placed for you.** Each arrow gets its name written clear of its own line and
+joined to it by the zig-zag the notation asks for — Ramus calls it a tilde. A name beside a
+vertical arrow steps along it, an arrow leaving a box is named just outside that box, and a
+name that would land on its own box is lifted above it. Give `label_x` and `label_y` to put
+one somewhere else, and `font_size` to change how big it is written; the size is stored in the
+file, so the diagram looks the same on a machine whose settings differ.
+
 **Decomposing works the way it does in the application.** When you add the first box inside
 an activity, the arrows of the diagram above appear here already, each with one end loose at
 the edge of the page. Draw an arrow with the name of one of those and it is that stub which
 gets connected — not a second arrow with the same name. The two levels stay joined, which is
 what makes the model consistent rather than merely similar.
+
+### The title block
+
+- **`set_model_info`** — the part of the frame that belongs to the whole model and shows on
+  every diagram of it: the project, the author, what the model is used for, its purpose, the
+  readers who have signed it off, and the letter the node codes start with.
+- **`set_diagram_info`** — the part that belongs to one sheet: its author, the date it was
+  drawn, the date it was last revised, and which of WORKING, DRAFT, RECOMMENDED and
+  PUBLICATION the marker sits against.
+
+Call `set_diagram_info` **after** the drawing is finished. Changing a diagram stamps its
+revision date with the time of the change — that is what a revision date is, and it is what
+the application does too — so a date set before the last arrow is drawn will be replaced.
+
+The node code, the sheet number, the context thumbnail and the row of numbers beside NOTES are
+computed or drawn rather than stored, and nothing can set them. The node code follows the
+position of the box: leftmost is A1.
 
 **A model an agent builds opens on its diagram.** Ramus Next does not work out what to show
 from the model: a file carries a list of the diagrams that were open when it was last saved,
@@ -141,15 +174,16 @@ anywhere you can. `delete_model` is real deletion — no trash, no copy kept. Th
 between it and the rest of your disk is that it checks the target really is a Ramus model
 before removing it, by reading it as an archive rather than by trusting the extension.
 
-**It does not route arrows or place labels.** Boxes go on the diagonal, an arrow takes the
-shortest way the drawing panel gives it, and a name is written where the arrow was when it
-was drawn. On a diagram with three mechanisms on one box the names will overlap and want
-dragging apart. Everything is in the right place structurally — every arrow is attached to
-the side it was given, which is what `get_diagram` and the reports read — but a diagram
-straight from an agent is a draft, not a drawing.
+**It does not route arrows.** Boxes go on the diagonal and an arrow takes the shortest way the
+drawing panel gives it, which on a busy diagram means lines that cross. Names are placed and
+kept clear of the boxes, but nothing in Ramus lays labels out — the rules here are this
+server's own, and they are rules of thumb: a very long name, or five arrows down one side of
+one box, will still want a hand. Everything is in the right place structurally — every arrow
+attached to the side it was given, which is what `get_diagram` and the reports read — but a
+diagram straight from an agent is a good draft, not a finished drawing.
 
 So: an agent can build a model, restructure your catalogs, fill in attributes and answer
-questions about the diagrams. Making them look right stays with you.
+questions about the diagrams. The last tenth of making them look right stays with you.
 
 ## Switching models writes them
 

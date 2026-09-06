@@ -45,6 +45,9 @@ final class DrawTools {
                         + "\"x\":{\"type\":\"number\",\"description\":\"Left edge, in diagram "
                         + "units; the page is 800 wide. Optional.\"},"
                         + "\"y\":{\"type\":\"number\",\"description\":\"Top edge. Optional.\"},"
+                        + "\"font_size\":{\"type\":\"integer\",\"description\":\"Point size "
+                        + "of the name inside the box. Default 10; the box is sized to fit "
+                        + "the name at whatever size you give.\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[\"name\"]}",
@@ -62,6 +65,9 @@ final class DrawTools {
                         + "\"y\":{\"type\":\"number\"},"
                         + "\"width\":{\"type\":\"number\"},"
                         + "\"height\":{\"type\":\"number\"},"
+                        + "\"font_size\":{\"type\":\"integer\",\"description\":\"Point size "
+                        + "of the name. The box is refitted to it unless you also give a "
+                        + "size.\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[\"activity\"]}",
@@ -112,6 +118,30 @@ final class DrawTools {
                         + "\"required\":[\"name\",\"from\",\"to\"]}",
                 (request) -> addArrow(workspace.current(), request));
 
+        Tools.addTool(server, json, "set_arrow",
+                "Changes an arrow already drawn: renames it, moves its name, turns its tilde "
+                        + "- the zig-zag joining the name to the line - on or off, or changes "
+                        + "the size the name is written in. Only what you name is touched.",
+                "{\"type\":\"object\",\"properties\":{"
+                        + "\"name\":{\"type\":\"string\",\"description\":\"The arrow's "
+                        + "name now.\"},"
+                        + "\"new_name\":{\"type\":\"string\",\"description\":\"What to call "
+                        + "it instead. An existing name makes it the same flow as that "
+                        + "one.\"},"
+                        + "\"label_x\":{\"type\":\"number\",\"description\":\"Where to put "
+                        + "the name.\"},"
+                        + "\"label_y\":{\"type\":\"number\"},"
+                        + "\"tilde\":{\"type\":\"boolean\",\"description\":\"Whether to draw "
+                        + "the zig-zag from the name to the line.\"},"
+                        + "\"font_size\":{\"type\":\"integer\"},"
+                        + "\"diagram\":{\"type\":\"integer\",\"description\":\"The id of the "
+                        + "activity whose diagram the arrow is on. Omit for the top of the "
+                        + "model.\"},"
+                        + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
+                        + "or id. May be omitted when the file holds only one.\"}},"
+                        + "\"required\":[\"name\"]}",
+                (request) -> setArrow(workspace.current(), request));
+
         Tools.addTool(server, json, "remove_arrow",
                 "Removes an arrow from a diagram by name. Say which diagram it is on - the "
                         + "activity whose decomposition it belongs to - or name one of the "
@@ -155,7 +185,7 @@ final class DrawTools {
         return inTransaction(session.getEngine(), () -> {
             DiagramBuilder builder = new DiagramBuilder(session, model, parent);
             Function added = builder.addActivity(name, number(request, "x"),
-                    number(request, "y"));
+                    number(request, "y"), fontSize(request));
             builder.commit();
             return Map.of("added", describe(added));
         });
@@ -173,7 +203,8 @@ final class DrawTools {
             builder.setActivity(function, request.get("name") == null
                             ? null : request.get("name").toString(),
                     number(request, "x"), number(request, "y"),
-                    number(request, "width"), number(request, "height"));
+                    number(request, "width"), number(request, "height"),
+                    fontSize(request));
             builder.commit();
             return Map.of("changed", describe(function));
         });
@@ -285,6 +316,30 @@ final class DrawTools {
             throw new IllegalArgumentException("\"font_size\" is a point size; " + value
                     + " is not one. Diagrams use eight to twelve.");
         return value;
+    }
+
+    private static Object setArrow(ModelSession session, Map<String, Object> request)
+            throws Exception {
+        Qualifier model = DiagramTools.resolveModel(session, request);
+        DataPlugin plugin = session.getDataPlugin(model);
+        Function parent = request.get("diagram") == null
+                ? plugin.getBaseFunction()
+                : activity(plugin, Json.integer(request, "diagram", -1), model);
+        String name = Json.string(request, "name");
+        Object newName = request.get("new_name");
+        Object tilde = request.get("tilde");
+
+        session.markChanged();
+        return inTransaction(session.getEngine(), () -> {
+            DiagramBuilder builder = new DiagramBuilder(session, model, parent);
+            builder.setArrow(name, newName == null ? null : newName.toString(),
+                    number(request, "label_x"), number(request, "label_y"),
+                    tilde == null ? null : Boolean.valueOf(tilde.toString()),
+                    fontSize(request));
+            builder.commit();
+            return Map.of("changed", newName == null ? name : newName.toString(),
+                    "diagram", describe(parent));
+        });
     }
 
     private static Object removeArrow(ModelSession session, Map<String, Object> request)
