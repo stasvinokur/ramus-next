@@ -481,7 +481,7 @@ final class DiagramBuilder {
         // lands on one of them. Everything else is named at its middle, which for an arrow
         // running in from the edge of the page is the clear space beside it.
         FRectangle activityBounds = activity == null ? null : activity.getBounds();
-        Point exit = leavesABox ? arrow.getStartPoint() : null;
+        Point exit = leavesABox && arrow.getPinCount() > 0 ? arrow.getStartPoint() : null;
         FloatPoint anchor = exit == null ? arrow.getTildaPoint()
                 : new FloatPoint(exit.getX(), exit.getY());
         boolean vertical = side == MovingPanel.TOP || side == MovingPanel.BOTTOM;
@@ -531,10 +531,11 @@ final class DiagramBuilder {
         // Last resort, and the one that catches every case the rules above do not: a name
         // printed across its own box is unreadable, and it happens whenever the box is at the
         // edge of the page and the name has nowhere else to go. Above the box it always has.
-        if (labelX == null && overlaps(x, y, box, activityBounds)) {
+        FRectangle across = labelX == null ? boxUnder(x, y, box) : null;
+        if (across != null) {
             x = Math.max(FRAME_MARGIN,
                     Math.min(x, area.MOVING_AREA_WIDTH - MARGIN - box.getWidth()));
-            y = activityBounds.getTop() - box.getHeight() - LABEL_GAP;
+            y = across.getTop() - box.getHeight() - LABEL_GAP;
         }
         label.setBounds(new FRectangle(x, y, box.getWidth(), box.getHeight()));
 
@@ -564,12 +565,24 @@ final class DiagramBuilder {
 
     private static final String ARROW_FONT_FAMILY = "Dialog";
 
-    /** Whether a label put here would be printed across the box it belongs to. */
-    private boolean overlaps(double x, double y, FRectangle label, FRectangle activity) {
-        if (activity == null)
-            return false;
-        return x < activity.getRight() && x + label.getWidth() > activity.getLeft()
-                && y < activity.getBottom() && y + label.getHeight() > activity.getTop();
+    /**
+     * The box a label put here would be printed across, or null if it crosses none.
+     *
+     * <p>
+     * Every box on the diagram, not only the one the arrow touches: a branch is named on the
+     * segment that holds the name, and that segment can run anywhere - past a box the arrow
+     * has nothing to do with.
+     */
+    private FRectangle boxUnder(double x, double y, FRectangle label) {
+        for (Row row : plugin.getChilds(parent, true)) {
+            if (!(row instanceof Function))
+                continue;
+            FRectangle bounds = ((Function) row).getBounds();
+            if (x < bounds.getRight() && x + label.getWidth() > bounds.getLeft()
+                    && y < bounds.getBottom() && y + label.getHeight() > bounds.getTop())
+                return bounds;
+        }
+        return null;
     }
 
     /**
@@ -702,6 +715,16 @@ final class DiagramBuilder {
             throw new IllegalStateException("The branch of \"" + name + "\" to \""
                     + box.activity.getName() + "\" was not drawn. The arrow may already reach "
                     + "that activity.");
+
+        // Branching cut the trunk in two, and the name is still sitting where it belonged on
+        // the whole one - which after two branches is the middle of the page rather than
+        // beside the arrow. Put it back where the shortened segment can carry it.
+        PaintSector holder = arrowNamed(name);
+        if (holder != null) {
+            PaintSector owner = holder.getText() != null ? holder : ownerOfLabel(holder);
+            if (owner != null)
+                nameIt(owner, box.activity, box.side, 1, false, null, null, null);
+        }
     }
 
     /** The arrow of this name on this diagram, or null. */
