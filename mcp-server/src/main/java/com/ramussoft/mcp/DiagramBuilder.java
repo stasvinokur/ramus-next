@@ -169,7 +169,7 @@ final class DiagramBuilder {
         // model that ships with Ramus draws its context box half again as big, and so does
         // this.
         rect.setWidth(Math.max(width, MINIMUM_WIDTH));
-        rect.setHeight(Math.max(height, MINIMUM_HEIGHT));
+        rect.setHeight(Math.min(Math.max(height, MINIMUM_HEIGHT), maxBoxHeight()));
         return rect;
     }
 
@@ -209,33 +209,52 @@ final class DiagramBuilder {
         // Room on the left for the names of the arrows coming in from the edge of the page.
         // Without it the leftmost box sits in the corner, its inputs are a few units long,
         // and their names are printed across the box itself.
-        double left = LABEL_ROOM;
-        double margin = 24;
-        double spanX = area.MOVING_AREA_WIDTH - left - margin - box.getWidth();
+        double spanX = area.MOVING_AREA_WIDTH - LABEL_ROOM - MARGIN - box.getWidth();
         if (isAContextDiagram())
-            return new double[]{left + spanX / 2,
-                    margin + (area.CLIENT_HEIGHT - margin * 2 - box.getHeight()) / 2};
+            return new double[]{LABEL_ROOM + spanX / 2,
+                    MARGIN + (area.CLIENT_HEIGHT - MARGIN * 2 - box.getHeight()) / 2};
 
         // Four down and four across, which is the diagram an IDEF0 author is told to aim for.
-        // The step is the height of a box unless four of them will not fit at that spacing,
-        // and then it is a quarter of the page - the boxes are what the diagram is for.
-        double room = area.CLIENT_HEIGHT - margin * 2;
-        double down = Math.max(box.getHeight() + BOX_GAP / 4,
-                Math.min(box.getHeight() + BOX_GAP, room / ROWS));
-        int rows = Math.max(1, (int) (room / down));
         double across = spanX / (ROWS - 1);
         return new double[]{
-                Math.min(left + across * index, left + spanX),
-                margin + down * (index % rows)};
+                Math.min(LABEL_ROOM + across * index, LABEL_ROOM + spanX),
+                TOP_ROOM + rowStep() * (index % ROWS)};
     }
 
     private static final double BOX_GAP = 16;
+
+    private static final double MARGIN = 24;
 
     /** How many boxes a diagram is laid out for, across and down. */
     private static final int ROWS = 4;
 
     /** Room kept clear on the left for the names of arrows arriving from the page edge. */
-    private static final double LABEL_ROOM = 110;
+    private static final double LABEL_ROOM = 150;
+
+    /**
+     * Room kept clear above the first box.
+     *
+     * <p>
+     * Not margin for its own sake: a control comes down from the top of the page, and with the
+     * first box against the top edge that arrow is a dozen units long - too short to be read,
+     * and too short to branch, which is how one control reaches four activities.
+     */
+    private static final double TOP_ROOM = 60;
+
+    /** How far apart the rows of a decomposition sit, so that four of them fit the page. */
+    private double rowStep() {
+        return (area.CLIENT_HEIGHT - TOP_ROOM - MARGIN) / ROWS;
+    }
+
+    /**
+     * The tallest a box may be on this diagram. A decomposition holds four of them and they
+     * must not overlap; a context diagram holds one and can have whatever it needs.
+     */
+    private double maxBoxHeight() {
+        if (isAContextDiagram())
+            return Double.MAX_VALUE;
+        return rowStep() - BOX_GAP;
+    }
 
     /** The diagram of the model's top activity, where IDEF0 allows exactly one box. */
     private boolean isAContextDiagram() {
@@ -316,8 +335,8 @@ final class DiagramBuilder {
 
         End box = from.activity == null ? to : from;
         double[] anchor = from.activity == null ? end : start;
-        nameIt(created, box.side, anchor == null ? 0 : (int) anchor[2],
-                labelX, labelY, fontSize);
+        nameIt(created, box.activity, box.side, anchor == null ? 0 : (int) anchor[2],
+                from.activity != null, labelX, labelY, fontSize);
     }
 
     /**
@@ -389,7 +408,8 @@ final class DiagramBuilder {
         // is the same either way, so that is what identifies it.
         PaintSector connected = paintedAs(stubbed);
         if (connected != null)
-            nameIt(connected, box.side, (int) anchor[2], labelX, labelY, fontSize);
+            nameIt(connected, box.activity, box.side, (int) anchor[2], leaving,
+                    labelX, labelY, fontSize);
         return true;
     }
 
@@ -424,8 +444,8 @@ final class DiagramBuilder {
      * and re-centred on open. A layout computed here only survives if the file carries the
      * font it was computed for.
      */
-    private void nameIt(PaintSector arrow, int side, int slot,
-                        Double labelX, Double labelY, Integer fontSize) {
+    private void nameIt(PaintSector arrow, Function activity, int side, int slot,
+                        boolean leavesABox, Double labelX, Double labelY, Integer fontSize) {
         arrow.setFont(new Font(ARROW_FONT_FAMILY, Font.PLAIN,
                 fontSize == null ? ARROW_FONT_SIZE : fontSize));
         // Not saved by PaintSector.save and not by the path that creates a sector - that call
@@ -434,7 +454,15 @@ final class DiagramBuilder {
 
         arrow.createTexts();
 
-        FloatPoint anchor = arrow.getTildaPoint();
+        // Where the name goes to sit. An arrow that leaves a box is named just outside the
+        // box that produces it - that is where a drawn diagram puts it, and the middle of the
+        // line is no good for these because the line bends around other boxes and its middle
+        // lands on one of them. Everything else is named at its middle, which for an arrow
+        // running in from the edge of the page is the clear space beside it.
+        FRectangle activityBounds = activity == null ? null : activity.getBounds();
+        Point exit = leavesABox ? arrow.getStartPoint() : null;
+        FloatPoint anchor = exit == null ? arrow.getTildaPoint()
+                : new FloatPoint(exit.getX(), exit.getY());
         boolean vertical = side == MovingPanel.TOP || side == MovingPanel.BOTTOM;
         MovingLabel label = labelOf(arrow);
         if (label == null)
@@ -456,6 +484,9 @@ final class DiagramBuilder {
         if (labelX != null && labelY != null) {
             x = labelX;
             y = labelY;
+        } else if (leavesABox) {
+            x = anchor.getX() + LABEL_GAP;
+            y = anchor.getY() - box.getHeight() - LABEL_GAP;
         } else if (vertical) {
             // Names beside a vertical arrow are written across it, so three arrows into the
             // bottom of one box would print three names side by side in the width of one.
@@ -467,6 +498,14 @@ final class DiagramBuilder {
             x = anchor.getX() - box.getWidth() / 2;
             y = anchor.getY() - box.getHeight() - LABEL_GAP;
         }
+        // Last resort, and the one that catches every case the rules above do not: a name
+        // printed across its own box is unreadable, and it happens whenever the box is at the
+        // edge of the page and the name has nowhere else to go. Above the box it always has.
+        if (labelX == null && overlaps(x, y, box, activityBounds)) {
+            x = Math.max(FRAME_MARGIN,
+                    Math.min(x, area.MOVING_AREA_WIDTH - MARGIN - box.getWidth()));
+            y = activityBounds.getTop() - box.getHeight() - LABEL_GAP;
+        }
         label.setBounds(new FRectangle(x, y, box.getWidth(), box.getHeight()));
 
         // The zig-zag runs from the line to the name, so it belongs beside the name rather
@@ -474,10 +513,12 @@ final class DiagramBuilder {
         // the result without checking, so it is only ever called on a point already known to
         // be on the line; otherwise the middle stands, which is where the name is anyway.
         List<PaintSector> touched = null;
-        if (vertical && labelX == null) {
-            double onTheLine = y + box.getHeight() / 2;
-            if (arrow.isOnMe(anchor.getX(), onTheLine) != null)
-                touched = arrow.setTildaPos(anchor.getX(), onTheLine);
+        if (labelX == null) {
+            double[] near = vertical
+                    ? new double[]{anchor.getX(), y + box.getHeight() / 2}
+                    : nearTheExit(arrow, leavesABox);
+            if (near != null && arrow.isOnMe(near[0], near[1]) != null)
+                touched = arrow.setTildaPos(near[0], near[1]);
         }
         if (touched == null)
             arrow.setShowTilda(true);
@@ -492,6 +533,35 @@ final class DiagramBuilder {
     }
 
     private static final String ARROW_FONT_FAMILY = "Dialog";
+
+    /** Whether a label put here would be printed across the box it belongs to. */
+    private boolean overlaps(double x, double y, FRectangle label, FRectangle activity) {
+        if (activity == null)
+            return false;
+        return x < activity.getRight() && x + label.getWidth() > activity.getLeft()
+                && y < activity.getBottom() && y + label.getHeight() > activity.getTop();
+    }
+
+    /**
+     * A point on the arrow just after it leaves the box, for the zig-zag to start from. Null
+     * when the arrow does not leave a box, or when its first run is too short to hold a point
+     * that is neither of its ends.
+     */
+    private double[] nearTheExit(PaintSector arrow, boolean leavesABox) {
+        if (!leavesABox || arrow.getPinCount() == 0)
+            return null;
+        PaintSector.Pin first = arrow.getPin(0);
+        Point start = first.getStart();
+        Point end = first.getEnd();
+        if (start == null || end == null)
+            return null;
+        double length = Math.abs(first.getLength());
+        if (length < BRANCH_ROOM)
+            return null;
+        double at = Math.min(BRANCH_ROOM, length / 2) / length;
+        return new double[]{start.getX() + (end.getX() - start.getX()) * at,
+                start.getY() + (end.getY() - start.getY()) * at};
+    }
 
     /**
      * The label of an arrow, wherever it ended up.
@@ -513,6 +583,128 @@ final class DiagramBuilder {
                 return sector.getText();
         return null;
     }
+
+    /**
+     * Branches an arrow that is already on this diagram, or merges into it.
+     *
+     * <p>
+     * One flow reaching four activities is one arrow that forks, not four arrows that share a
+     * name. The difference is in the model, not only on the page: a fork is a crosspoint, the
+     * segments carry the same stream element, and a report reading the model sees one thing
+     * arriving at four places. Four separate arrows would be four things with equal names.
+     *
+     * <p>
+     * The application makes one by drawing a new arrow whose first point lands on an existing
+     * one, and that is exactly what this does - a PerspectivePoint carrying a pin instead of
+     * coordinates. What follows is the panel's own work: it splits the trunk where the point
+     * landed, mints the crosspoint, and copies the stream onto the branch. Naming the branch
+     * afterwards would be wrong, and is not done.
+     *
+     * @param leaving whether the new segment leaves the activity and merges into the arrow,
+     *                rather than branching off the arrow and arriving at the activity.
+     */
+    void branch(String name, End box, boolean leaving) {
+        if (arrowNamed(name) == null)
+            throw new IllegalArgumentException("No arrow called \"" + name + "\" on this "
+                    + "diagram, so there is nothing to branch. get_diagram lists the arrows "
+                    + "it has.");
+        // The longest run of the WHOLE flow, not of the first segment found. A flow that has
+        // been branched already is several segments, each shorter than the one it was cut
+        // from, and cutting the shortest again is what runs out of room first.
+        PaintSector trunk = null;
+        PaintSector.Pin pin = null;
+        double longest = 0;
+        for (PaintSector paint : sectors()) {
+            Sector sector = paint.getSector();
+            if (sector == null || sector.getName() == null
+                    || !name.trim().equals(sector.getName().trim()))
+                continue;
+            // The panel refuses to split an arrow that is still a stub, and it refuses in
+            // silence, so those are passed over here rather than offered to it.
+            if (paint.getStart() == null || paint.getEnd() == null)
+                continue;
+            for (int i = 0; i < paint.getPinCount(); i++) {
+                double length = Math.abs(paint.getPin(i).getLength());
+                if (length > longest) {
+                    longest = length;
+                    trunk = paint;
+                    pin = paint.getPin(i);
+                }
+            }
+        }
+        double[] where = pin == null ? null : middleOf(pin);
+        if (where == null)
+            throw new IllegalStateException("\"" + name + "\" has no straight run long enough "
+                    + "to branch from - every part of it is either too short to cut or not "
+                    + "joined at both ends yet. Move what it connects further apart, or draw "
+                    + "the branch as its own arrow.");
+
+        int before = area.getRefactor().getSectorsCount();
+        area.setArrowAddingState();
+
+        SectorRefactor.PerspectivePoint onTheArrow = new SectorRefactor.PerspectivePoint();
+        onTheArrow.type = leaving ? SectorRefactor.TYPE_END : SectorRefactor.TYPE_START;
+        onTheArrow.pin = pin;
+        onTheArrow.x = where[0];
+        onTheArrow.y = where[1];
+
+        double[] anchor = anchorOf(box);
+        Ordinate x = new Ordinate(Ordinate.TYPE_X);
+        Ordinate y = new Ordinate(Ordinate.TYPE_Y);
+        SectorRefactor.PerspectivePoint onTheBox = new SectorRefactor.PerspectivePoint();
+        onTheBox.type = leaving ? SectorRefactor.TYPE_START : SectorRefactor.TYPE_END;
+        onTheBox.point = new Point(x, y);
+        onTheBox.setFunction(box.activity, box.side);
+        x.setPosition(anchor[0]);
+        y.setPosition(anchor[1]);
+
+        // Start first whichever end it is: the panel adds the start point, then the end.
+        SectorRefactor.PerspectivePoint first = leaving ? onTheBox : onTheArrow;
+        SectorRefactor.PerspectivePoint second = leaving ? onTheArrow : onTheBox;
+        area.getRefactor().setPoint(first);
+        area.doSector();
+        area.getRefactor().setPoint(second);
+        area.doSector();
+
+        // The panel's refusals are silent - it simply returns - so the count is what says
+        // whether anything happened.
+        if (area.getRefactor().getSectorsCount() <= before)
+            throw new IllegalStateException("The branch of \"" + name + "\" to \""
+                    + box.activity.getName() + "\" was not drawn. The arrow may already reach "
+                    + "that activity.");
+    }
+
+    /** The arrow of this name on this diagram, or null. */
+    private PaintSector arrowNamed(String name) {
+        for (PaintSector paint : sectors()) {
+            Sector sector = paint.getSector();
+            if (sector == null || sector.getName() == null)
+                continue;
+            if (name.trim().equals(sector.getName().trim()))
+                return paint;
+        }
+        return null;
+    }
+
+    /**
+     * The middle of a run, or null when it is too short to cut.
+     *
+     * <p>
+     * Too short is not a matter of taste: a point within about eleven units of either end is
+     * taken as "join the corner that is already there" rather than "make a new one", which is
+     * a legal result and not the one asked for.
+     */
+    private double[] middleOf(PaintSector.Pin pin) {
+        Point start = pin.getStart();
+        Point end = pin.getEnd();
+        if (start == null || end == null)
+            return null;
+        if (Math.abs(pin.getLength()) < BRANCH_ROOM)
+            return null;
+        return new double[]{(start.getX() + end.getX()) / 2, (start.getY() + end.getY()) / 2};
+    }
+
+    private static final double BRANCH_ROOM = 30;
 
     /** The painted sector standing for this row right now, or null if it has gone. */
     private PaintSector paintedAs(Sector row) {

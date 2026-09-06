@@ -68,30 +68,45 @@ final class DrawTools {
                 (request) -> setActivity(workspace.current(), request));
 
         Tools.addTool(server, json, "add_arrow",
-                "Draws an arrow and names it. Each end is either an activity with the role "
-                        + "the arrow plays there - {\"activity\": 12, \"role\": \"input\"} - "
-                        + "or the edge of the page, written {\"border\": true}, which is how "
-                        + "anything from outside the diagram arrives. An arrow leaves an "
+                "Draws an arrow and names it. Each end is one of three things: an activity "
+                        + "with the role the arrow plays there - {\"activity\": 12, \"role\": "
+                        + "\"input\"} - the edge of the page, {\"border\": true}, which is how "
+                        + "anything from outside the diagram arrives, or an arrow already on "
+                        + "the diagram, {\"arrow\": \"Standard\"}, which BRANCHES that arrow "
+                        + "so the same flow reaches one more activity. An arrow leaves an "
                         + "output and arrives at an input, a control or a mechanism, so "
                         + "\"from\" takes the output end. A border end needs no side: it "
                         + "takes the one that matches the other end. Two arrows given the "
                         + "same name carry the same thing, which is how one flow crosses "
-                        + "several diagrams. Held in memory until you call save.",
+                        + "several diagrams - but on ONE diagram, use a branch rather than a "
+                        + "second arrow of the same name. The name is placed clear of the "
+                        + "line with a tilde; give label_x and label_y to put it somewhere "
+                        + "else. Held in memory until you call save.",
                 "{\"type\":\"object\",\"properties\":{"
                         + "\"name\":{\"type\":\"string\",\"description\":\"What flows along "
-                        + "the arrow - a noun phrase.\"},"
+                        + "the arrow - a noun phrase. For a branch, the name of the arrow "
+                        + "being branched.\"},"
                         + "\"from\":{\"type\":\"object\",\"description\":\"Where the arrow "
                         + "starts.\",\"properties\":{"
                         + "\"activity\":{\"type\":\"integer\"},"
                         + "\"role\":{\"type\":\"string\",\"enum\":[\"output\",\"input\","
                         + "\"control\",\"mechanism\"]},"
-                        + "\"border\":{\"type\":\"boolean\"}}},"
+                        + "\"border\":{\"type\":\"boolean\"},"
+                        + "\"arrow\":{\"type\":\"string\",\"description\":\"Branch off this "
+                        + "arrow instead of starting a new one.\"}}},"
                         + "\"to\":{\"type\":\"object\",\"description\":\"Where it ends.\","
                         + "\"properties\":{"
                         + "\"activity\":{\"type\":\"integer\"},"
                         + "\"role\":{\"type\":\"string\",\"enum\":[\"output\",\"input\","
                         + "\"control\",\"mechanism\"]},"
-                        + "\"border\":{\"type\":\"boolean\"}}},"
+                        + "\"border\":{\"type\":\"boolean\"},"
+                        + "\"arrow\":{\"type\":\"string\",\"description\":\"Merge into this "
+                        + "arrow instead of ending somewhere new.\"}}},"
+                        + "\"label_x\":{\"type\":\"number\",\"description\":\"Where to put the "
+                        + "name. Optional; placed beside the arrow when left out.\"},"
+                        + "\"label_y\":{\"type\":\"number\"},"
+                        + "\"font_size\":{\"type\":\"integer\",\"description\":\"Point size of "
+                        + "the name. Default 10, which is what the drawn models use.\"},"
                         + "\"model\":{\"type\":\"string\",\"description\":\"The model's name "
                         + "or id. May be omitted when the file holds only one.\"}},"
                         + "\"required\":[\"name\",\"from\",\"to\"]}",
@@ -174,6 +189,17 @@ final class DrawTools {
         Map<String, Object> to = end(request, "to");
         Function fromActivity = endActivity(plugin, model, from);
         Function toActivity = endActivity(plugin, model, to);
+
+        // One end naming an arrow means a branch of that arrow rather than a new one. It is
+        // the same flow reaching one more place, which is a fork in the model and not a
+        // second arrow that happens to share a name.
+        Object fromArrow = from.get("arrow");
+        Object toArrow = to.get("arrow");
+        if (fromArrow != null || toArrow != null)
+            return branch(session, model, request, name,
+                    fromArrow != null ? fromArrow.toString() : toArrow.toString(),
+                    fromArrow != null ? to : from, fromArrow == null);
+
         if (fromActivity == null && toActivity == null)
             throw new IllegalArgumentException("An arrow needs at least one end on an "
                     + "activity: both ends cannot be the border of the page.");
@@ -203,13 +229,62 @@ final class DrawTools {
         session.markChanged();
         return inTransaction(session.getEngine(), () -> {
             DiagramBuilder builder = new DiagramBuilder(session, model, parent);
-            builder.addArrow(name, start, finish);
+            builder.addArrow(name, start, finish, number(request, "label_x"),
+                    number(request, "label_y"), fontSize(request));
             builder.commit();
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("added", name);
             result.put("diagram", describe(parent));
             return result;
         });
+    }
+
+    /**
+     * The same flow reaching one more activity: a branch of an arrow already drawn.
+     *
+     * @param leaving whether the activity is where the new segment starts, which makes this a
+     *                merge into the arrow rather than a branch off it.
+     */
+    private static Object branch(ModelSession session, Qualifier model,
+                                 Map<String, Object> request, String name, String arrow,
+                                 Map<String, Object> other, boolean leaving) throws Exception {
+        DataPlugin plugin = session.getDataPlugin(model);
+        Function activity = endActivity(plugin, model, other);
+        if (activity == null)
+            throw new IllegalArgumentException("A branch runs from an arrow to an activity, "
+                    + "so the other end has to name one. Both ends cannot be arrows, and a "
+                    + "branch to the border of the page is not a branch.");
+        if (!name.trim().equals(arrow.trim()))
+            throw new IllegalArgumentException("A branch carries the same thing as the arrow "
+                    + "it leaves, so it has the same name. \"" + name + "\" and \"" + arrow
+                    + "\" differ - draw a separate arrow instead.");
+
+        int side = side(other, leaving ? "from" : "to", activity, leaving);
+        Function parent = parentOf(activity);
+
+        session.markChanged();
+        return inTransaction(session.getEngine(), () -> {
+            DiagramBuilder builder = new DiagramBuilder(session, model, parent);
+            builder.branch(arrow, DiagramBuilder.End.on(activity, side), leaving);
+            builder.commit();
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put(leaving ? "merged_into" : "branched", arrow);
+            result.put("reaches", describe(activity));
+            result.put("diagram", describe(parent));
+            return result;
+        });
+    }
+
+    /** The size to write an arrow's name in, if the agent asked for one. */
+    private static Integer fontSize(Map<String, Object> request) {
+        Double size = number(request, "font_size");
+        if (size == null)
+            return null;
+        int value = (int) Math.round(size);
+        if (value < 4 || value > 72)
+            throw new IllegalArgumentException("\"font_size\" is a point size; " + value
+                    + " is not one. Diagrams use eight to twelve.");
+        return value;
     }
 
     private static Object removeArrow(ModelSession session, Map<String, Object> request)

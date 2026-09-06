@@ -287,6 +287,71 @@ public class DiagramBuilderTest {
         }
     }
 
+    /**
+     * One flow reaching three activities is one arrow that forks, not three arrows that share
+     * a name. The difference is in the model: a fork is crosspoints and one stream element, and
+     * a report reading it sees one thing arriving in three places.
+     */
+    @Test
+    public void oneArrowCanBranchToSeveralActivities() throws Exception {
+        Assume.assumeFalse(GraphicsEnvironment.isHeadless());
+
+        File file = new File(folder.getRoot(), "branched.rsf");
+
+        try (ModelSession session = ModelSession.createNew(file)) {
+            Qualifier model = session.addModel("Модель", -1);
+            DataPlugin plugin = session.getDataPlugin(model);
+
+            DiagramBuilder context = new DiagramBuilder(session, model,
+                    plugin.getBaseFunction());
+            Function a0 = context.addActivity("Работа", null, null);
+            context.commit();
+
+            DiagramBuilder below = new DiagramBuilder(session, model, a0);
+            Function a1 = below.addActivity("Первое", null, null);
+            Function a2 = below.addActivity("Второе", null, null);
+            Function a3 = below.addActivity("Третье", null, null);
+            below.addArrow("Правило", DiagramBuilder.End.frame(MovingPanel.TOP),
+                    DiagramBuilder.End.on(a1, MovingPanel.TOP));
+            below.branch("Правило", DiagramBuilder.End.on(a2, MovingPanel.TOP), false);
+            below.branch("Правило", DiagramBuilder.End.on(a3, MovingPanel.TOP), false);
+            below.commit();
+            session.save();
+        }
+
+        try (ModelSession session = new ModelSession(file, true)) {
+            Qualifier model = IDEF0Plugin.getBaseQualifiers(session.getEngine()).get(0);
+            DataPlugin plugin = session.getDataPlugin(model);
+            Function a0 = (Function) plugin.getChilds(plugin.getBaseFunction(), true).get(0);
+
+            List<String> streams = new ArrayList<>();
+            for (Row row : plugin.getRecChilds(plugin.getBaseStream(), true))
+                if ("Правило".equals(row.getName()))
+                    streams.add(row.getName());
+            assertEquals("a branch is the same flow, so there is one stream", 1,
+                    streams.size());
+
+            // Every leaf reaches a box as a control, and the trunk segments join them.
+            int leaves = 0;
+            int joints = 0;
+            for (Sector sector : a0.getSectors()) {
+                if (!"Правило".equals(sector.getName()))
+                    continue;
+                for (NSectorBorder border : new NSectorBorder[]{sector.getStart(),
+                        sector.getEnd()}) {
+                    if (border.getFunction() != null) {
+                        leaves++;
+                        assertEquals("a branch of a control is a control",
+                                MovingPanel.TOP, border.getFunctionType());
+                    } else if (border.getFunction() == null && border.getBorderType() < 0)
+                        joints++;
+                }
+            }
+            assertEquals("one end on each of the three activities", 3, leaves);
+            assertTrue("the segments are joined at crosspoints, not left loose", joints >= 4);
+        }
+    }
+
     /** An arrow that arrives at the activity: the frame is the start, the box is the end. */
     private void arrive(DiagramBuilder builder, Function activity, String name, String role) {
         int side = DiagramBuilder.roleOf(role);
