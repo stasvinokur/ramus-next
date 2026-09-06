@@ -166,10 +166,7 @@ final class DiagramTools {
         // twice and make an agent walk the model twice. But its id is what get_diagram,
         // render_diagram and set_diagram_info want for the context diagram, and until now
         // nothing said what that id was.
-        result.put("context_diagram", Map.of(
-                "id", base.getElement().getId(),
-                "code", "A-0",
-                "name", base.getName()));
+        result.put("context_diagram", sheet(base, "A-0"));
         if (children.size() == 1 && code(children.get(0)).equals(code(base)))
             result.put("tree", describe(plugin, children.get(0), depth));
         else if (children.isEmpty())
@@ -222,10 +219,7 @@ final class DiagramTools {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("model", model.getName());
-        result.put("activity", Map.of(
-                "id", parent.getElement().getId(),
-                "code", code(parent),
-                "name", parent.getName()));
+        result.put("activity", sheet(parent, code(parent)));
         if (includeGeometry)
             result.put("page", geometry.page());
         result.put("children", children);
@@ -256,6 +250,15 @@ final class DiagramTools {
                 + "). Ask for that one.";
     }
 
+    /** Which sheet an answer is about, always said the same way and in the same order. */
+    private static Map<String, Object> sheet(Function activity, String code) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("id", activity.getElement().getId());
+        out.put("code", code);
+        out.put("name", activity.getName());
+        return out;
+    }
+
     /** The activity one level up, or null at the top of the model. */
     private static Function parentOf(Function function) {
         com.ramussoft.database.common.Row parent =
@@ -271,10 +274,7 @@ final class DiagramTools {
         DiagramGeometry geometry = DiagramGeometry.read(plugin, parent);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("model", model.getName());
-        result.put("activity", Map.of(
-                "id", parent.getElement().getId(),
-                "code", code(parent),
-                "name", parent.getName()));
+        result.put("activity", sheet(parent, code(parent)));
         result.put("page", geometry.page());
         result.put("arrows", geometry.arrows());
         return result;

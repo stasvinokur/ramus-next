@@ -100,7 +100,38 @@ equal names look the same and are a different model.
 
 **The title block can be filled in**: project, author, dates, purpose, readers and the status
 marker, split as the application splits them - the model's own on one side, each sheet's on
-the other.
+the other. `rename_model` renames a model where the name really lives - the row the Models
+panel reads, which is the only one of its two homes that carries to the other.
+
+**The drawing can be read back, not only looked at.** `get_diagram` built the drawing panel,
+walked every arrow and kept two strings from each, so an agent that had just drawn a diagram
+could not find out what it looked like: it had to carry its own idea of the page, and that idea
+was wrong, because nothing anywhere said the page is 800 by 444 with a seven-unit margin.
+`include_geometry` reports the page, the rectangle of every box, and the route, label and tilde
+of every arrow, in the same units the drawing tools take. `list_arrows` gives a row per
+segment with both ends said in full - the activity and role, or the side of the page, or the
+junction - and a group number, so one flow forking to four activities reads as one flow rather
+than four arrows that share a name. On a context diagram every arrow has one end on the frame,
+and those ends used to be dropped outright, which left the whole sheet as four lists of names
+with no directions in them.
+
+**The context diagram can be asked for.** It belongs to an activity that is not a node of the
+function tree, so its id was a number nothing had ever reported - and the commonest request of
+all was the one that could not be made. `get_function_tree` now carries it as a field, and
+every tool that takes a sheet defaults to it.
+
+**A failure says what failed.** An error reached the agent as whatever `getMessage` happened to
+return, which for a wrapped exception is the cause's `toString` - so an unreadable date arrived
+as `java.sql.SQLException: ...` and there was nothing to be done with it. The chain is now
+walked to the deepest thing that said something, the class name is dropped, and the tool that
+refused is named.
+
+**A script can be run twice.** `create_model` and `save_model_as` take `overwrite`, with three
+conditions that are not optional: the target must be a Ramus model, it must not be open in the
+application, and a copy of it is kept. Before this the only way past "already exists" was to
+delete the file by hand outside the server. `save_model_as` into the path already open is now a
+save, rather than a save-as that reported the file it had just written over as
+`original_untouched`.
 
 What it does not do is route arrows. Lines cross on a busy diagram, and the label rules are
 this server's own rules of thumb, since nothing in Ramus lays labels out - a very long name or
@@ -108,8 +139,22 @@ five arrows down one side will still want a hand. Structurally everything is whe
 every arrow attached to the side it was given; a diagram straight from an agent is a good
 draft rather than a finished drawing.
 
+**It stays off your screen.** Reading or drawing a diagram means building the application's own
+drawing panel, and that starts AppKit - so the first such tool call raised a Dock icon and took
+the focus, pulling whoever was working out of a fullscreen window. The server asks macOS to
+treat it as an accessory instead, which is what a process talking over a pipe should always
+have been.
+
+**It says which build it is.** The version is a constant in the source, so two builds a day
+apart both call themselves 3.1.0 - and when an update is installed while a session is running,
+that session goes on talking to the old process with half the tools missing and nothing saying
+why. `serverInfo` and the instructions now carry the build stamp, and the instructions say what
+to do about a short tool list: start a new session, because re-listing returns the same list. It
+also stopped advertising a `listChanged` notification it never sent.
+
 Four things protect the model. A backup is written beside it before the first change, not
-before the first save. A save goes through a temporary file, so a full disk leaves the model
+before the first save - and not at all for a model the session created itself, which used to
+leave a `.backup` of an empty model in somebody's repository. A save goes through a temporary file, so a full disk leaves the model
 that was there. Writing is refused while the same model is open in the application, because
 a `.rsf` is never locked and the last save would otherwise win silently. And each change is
 one transaction, so what an agent did is one press of Undo.
@@ -156,16 +201,34 @@ model files in three separate ways, each found and closed before the upgrade lan
 
 Checked in all four directions on a real 53-table model, including against a pre-upgrade build.
 
-**Dates were disappearing from older models.** Java 9 changed its locale data, and with it the format
-this application had always used to write dates. Files saved by every released version of Ramus say
-`9/7/24 9:21 AM`; a modern Java expects `9/7/24, 9:21 AM`. The parse failure was caught and ignored,
-so the date was not reported as bad — **it was silently left empty**. On a real model that was seven
-dates lost behind fourteen swallowed errors. Reading now accepts both spellings, writing stays in the
-old one so older builds can still read what this one saves, and an unparseable date raises an error
-naming the value instead of vanishing.
+**Dates were disappearing from older models — and stopping newer ones from opening at all.** Java 9
+changed its locale data, and with it the format this application had always used to write dates. Files
+saved by every released version of Ramus say `9/7/24 9:21 AM`; a modern Java expects
+`9/7/24, 9:21 AM`. The parse failure was caught and ignored, so the date was not reported as bad —
+**it was silently left empty**. On a real model that was seven dates lost behind fourteen swallowed
+errors.
+
+Then Java 20 moved again. Its locale data writes a **narrow no-break space** before AM and PM instead
+of an ordinary space — the same three characters to look at, a different character to a parser. So a
+model saved by Ramus 2.0.2 on any current Java carries a date this application could not read, and
+what a person saw was a model that would not open: not a lost field, the whole file. It was invisible
+in development, because the JDK used there is newer still and tolerates the mismatch, and fatal on
+the Java that ships in the installer. Reading now normalises every kind of no-break space before it
+parses, so all three spellings open; writing stays in the plain-ASCII one, so older builds can still
+read what this one saves. An unparseable date raises an error that names the value and says what to
+do about it.
 
 ### Fixed
 
+- **Opening a model announced that other models were being restored.** Double-clicking one file
+  raised a "Restoring session" window naming a different one, once per session left behind by an
+  earlier run. The indicator went up before anything had looked inside, and a session with no
+  journals in it is deleted without a word - so what was announced was exactly the sessions that
+  had nothing to recover. The window is now raised only once the answer to "is there anything
+  here" is yes. Two things found on the same path: the session lock was read with `available()`
+  as a length and the result of `read()` discarded, so a short read would have put NUL bytes
+  inside a recovered file name; and its write is now truncating and self-contained rather than
+  relying on each caller to have made it so.
 - **Excel import failed with no message at all.** Choosing an `.xlsx` did nothing — no dialog, no
   error. Worse, an import that failed partway could **commit half a catalogue into your model**; it
   now rolls back and keeps the dialog open so the column mapping is not lost. Imported dates also

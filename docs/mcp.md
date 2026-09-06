@@ -71,13 +71,22 @@ then opening the other.
 - **`create_model`** — a new file with one model in it: a name and a notation, `idef0`,
   `dfd` or `dfds`.
 - **`save_model_as`** — write the open model somewhere else and carry on there, leaving the
-  original alone.
+  original alone. Given the path it is already open at, it is simply a save.
 - **`close_model`**, **`delete_model`**.
+
+`create_model` and `save_model_as` refuse a path that already exists unless you pass
+`overwrite`. That flag has three conditions and none of them is optional: the target must be a
+Ramus model, read as an archive rather than trusted by its extension; it must not be open in
+the application, since that session would write the old contents back over the new; and a copy
+of what was there is put beside it first. Without the flag a script that builds a model could
+only be run once, and the way on was to delete the file by hand outside the server.
 
 ### Catalogs
 
 - **`list_catalogs`** — the catalogs in the file, how many elements each holds, and their
-  attributes with types. The place to start.
+  attributes with types. The place to start. `include_system` adds the ones the application
+  keeps for itself — `F_MODEL_TREE`, `F_STREAMS` and the rest — which are ordinary catalogs
+  once you know their names.
 - **`list_elements`** — the elements of one catalog with their values, paged.
 - **`get_element`** — one element in full.
 
@@ -86,9 +95,33 @@ then opening the other.
 - **`list_models`** — the IDEF0 and DFD models in the file.
 - **`get_function_tree`** — the activity tree with IDEF0 codes: A0, A1, A11, and so on.
 - **`get_diagram`** — one diagram: the child activities, and for each of them the arrows
-  grouped by role — input, control, mechanism, output.
+  grouped by role — input, control, mechanism, output. Ask for `include_geometry` and it also
+  reports the page, the rectangle each box occupies, and the route, label and tilde of every
+  arrow.
+- **`list_arrows`** — a row per arrow SEGMENT, with both ends said in full: the activity and
+  the role there, or the side of the page it runs off, or the junction where it meets the rest
+  of its flow. Segments carrying one flow share a group number, so an arrow forking to four
+  activities reads as one flow rather than four arrows that happen to share a name — which
+  `get_diagram`, grouping by name, cannot tell you.
 - **`render_diagram`** — the same diagram as a PNG, laid out as the modeller drew it. Use it
   when the arrangement matters and not just the names.
+- **`rename_model`** — the name of a model inside the file, as `list_models` and the
+  application's Models panel show it. Not the name of the file; that is `save_model_as`.
+
+**Which diagram a tool means.** A diagram has no id of its own: it is named by the activity it
+decomposes. `get_diagram`, `render_diagram`, `list_arrows` and `set_diagram_info` spell that
+`activity`, the arrow tools spell it `diagram` and `add_activity` spells it `parent` — three
+names for one thing, kept because scripts already use them. All of them are optional, and
+leaving one out means the context diagram. `get_function_tree` reports that sheet's id as
+`context_diagram`; it is not a node of the tree, because it carries the same code as its only
+child and would show A0 twice. Where `activity` appears on `set_activity`, `remove_activity`
+and the ends of `add_arrow`, it means a BOX rather than a sheet.
+
+**The page is 800 by 444, with a margin of 7.** So a box or an arrow lives between 7 and 793
+across and between 7 and 437 down, in the units `add_activity` takes as `x` and `y`. The margin
+is not advice: an arrow told to start at the edge comes back starting at 7, because the panel
+substitutes it. `get_diagram` with `include_geometry` reports all three, so nothing has to be
+remembered.
 
 ### Queries
 
@@ -116,7 +149,7 @@ then opening the other.
   mechanism, so `from` takes the output end; a border end needs no side, it takes the one
   that matches the other end.
 - **`set_arrow`** — rename an arrow, move its name, turn its tilde on or off, change the size
-  it is written in.
+  it is written in or the width it wraps at.
 - **`remove_arrow`**, **`remove_activity`** — removing a box takes its arrows with it.
 
 Two arrows given the same name carry the same thing. That is not a convenience: one stream
@@ -133,8 +166,10 @@ outputs joining into one arrow — is the same call with the arrow named as the 
 joined to it by the zig-zag the notation asks for — Ramus calls it a tilde. A name beside a
 vertical arrow steps along it, an arrow leaving a box is named just outside that box, and a
 name that would land on its own box is lifted above it. Give `label_x` and `label_y` to put
-one somewhere else, and `font_size` to change how big it is written; the size is stored in the
-file, so the diagram looks the same on a machine whose settings differ.
+one somewhere else, `font_size` to change how big it is written, and `label_width` to say how
+wide it may run before it wraps — narrow where the arrows are close together, wider to keep a
+long name on one line. The size is stored in the file, so the diagram looks the same on a
+machine whose settings differ.
 
 **Decomposing works the way it does in the application.** When you add the first box inside
 an activity, the arrows of the diagram above appear here already, each with one end loose at
@@ -201,7 +236,9 @@ Four things, and none of them are optional.
 1. **A backup before the first change.** The moment a tool changes anything, `model.rsf` is
    copied to `model.rsf.backup` beside it. Before, not after — so a session that changes
    something and then dies still leaves the model as it was found. An existing backup is
-   never overwritten.
+   never overwritten. A model the session created itself is not copied: there is nothing
+   there to protect, and the copy was only ever a `.backup` of an empty model left in
+   somebody's repository.
 2. **A save that cannot half-finish.** The new model is written to a temporary file first and
    only takes the real name once it is complete. A full disk leaves the model that was there.
 3. **It refuses to write while you have the model open.** Checked every time a model is
@@ -211,6 +248,22 @@ Four things, and none of them are optional.
    write tools say so and do nothing.
 4. **One tool call, one Undo.** Each change runs in a single transaction, so what an agent
    did appears in the application as one step and reverses in one press.
+
+## After an update
+
+The command does not change, so there is nothing to add or remove: `claude mcp add` and
+`claude mcp remove` are for changing the configuration, not for picking up a new build.
+
+What does have to happen is a **new session**. A running server is a running process, and it
+has the tools it was built with; installing an update leaves that process untouched and
+serving the old set. Asking for the tool list again will not help — there is nothing new for
+it to return. This is worth knowing because the symptom is confusing: half the tools missing
+with nothing saying why.
+
+To tell which build you are talking to, the server names itself with the build it came from —
+`3.1.0 (build 2026-09-06 23:33)` — in `serverInfo` and again in the instructions the agent
+reads before it calls anything. Two builds a day apart are both 3.1.0; the timestamp is what
+separates them.
 
 ## If it does not work
 
