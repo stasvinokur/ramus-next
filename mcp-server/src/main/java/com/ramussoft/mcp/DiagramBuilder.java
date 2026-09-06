@@ -1,9 +1,15 @@
 package com.ramussoft.mcp;
 
+import java.awt.Font;
 import java.awt.geom.Rectangle2D;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Vector;
 
 import com.dsoft.pb.types.FRectangle;
+import com.dsoft.pb.types.FloatPoint;
+import com.dsoft.utils.DataLoader;
+import com.ramussoft.common.Engine;
 import com.ramussoft.common.Qualifier;
 import com.ramussoft.pb.DataPlugin;
 import com.ramussoft.pb.Function;
@@ -17,6 +23,7 @@ import com.ramussoft.pb.idef.elements.ReplaceStreamType;
 import com.ramussoft.pb.idef.elements.Point;
 import com.ramussoft.pb.idef.elements.SectorRefactor;
 import com.ramussoft.pb.idef.visual.MovingArea;
+import com.ramussoft.pb.idef.visual.MovingLabel;
 import com.ramussoft.pb.idef.visual.MovingPanel;
 
 /**
@@ -168,7 +175,11 @@ final class DiagramBuilder {
 
     private static final double MINIMUM_WIDTH = 108;
 
-    private static final double MINIMUM_HEIGHT = 72;
+    /**
+     * Tall enough that four arrows down one side leave room for their names between them: the
+     * side is divided into five, and a name is about thirteen units high.
+     */
+    private static final double MINIMUM_HEIGHT = 90;
 
     /**
      * The strip along the bottom of a box that the text does not get: IDEF0Object keeps it
@@ -195,23 +206,36 @@ final class DiagramBuilder {
         // Existing counts the box being placed, so the first one is at index zero.
         int index = Math.max(0, existing - 1);
 
+        // Room on the left for the names of the arrows coming in from the edge of the page.
+        // Without it the leftmost box sits in the corner, its inputs are a few units long,
+        // and their names are printed across the box itself.
+        double left = LABEL_ROOM;
         double margin = 24;
-        double spanX = area.MOVING_AREA_WIDTH - margin * 2 - box.getWidth();
+        double spanX = area.MOVING_AREA_WIDTH - left - margin - box.getWidth();
         if (isAContextDiagram())
-            return new double[]{margin + spanX / 2,
+            return new double[]{left + spanX / 2,
                     margin + (area.CLIENT_HEIGHT - margin * 2 - box.getHeight()) / 2};
 
-        double down = box.getHeight() + BOX_GAP;
-        int rows = Math.max(1, (int) ((area.CLIENT_HEIGHT - margin * 2) / down));
-        // Four across, which is the diagram an IDEF0 author is told to aim for; a fifth box
-        // is placed rather than refused, and the author moves it.
-        double across = spanX / 3;
+        // Four down and four across, which is the diagram an IDEF0 author is told to aim for.
+        // The step is the height of a box unless four of them will not fit at that spacing,
+        // and then it is a quarter of the page - the boxes are what the diagram is for.
+        double room = area.CLIENT_HEIGHT - margin * 2;
+        double down = Math.max(box.getHeight() + BOX_GAP / 4,
+                Math.min(box.getHeight() + BOX_GAP, room / ROWS));
+        int rows = Math.max(1, (int) (room / down));
+        double across = spanX / (ROWS - 1);
         return new double[]{
-                Math.min(margin + across * index, margin + spanX),
+                Math.min(left + across * index, left + spanX),
                 margin + down * (index % rows)};
     }
 
     private static final double BOX_GAP = 16;
+
+    /** How many boxes a diagram is laid out for, across and down. */
+    private static final int ROWS = 4;
+
+    /** Room kept clear on the left for the names of arrows arriving from the page edge. */
+    private static final double LABEL_ROOM = 110;
 
     /** The diagram of the model's top activity, where IDEF0 allows exactly one box. */
     private boolean isAContextDiagram() {
@@ -252,13 +276,24 @@ final class DiagramBuilder {
      * an activity or arrives at it, and the report keywords read exactly that.
      */
     void addArrow(String name, End from, End to) {
+        addArrow(name, from, to, null, null, null);
+    }
+
+    /**
+     * @param labelX   where to put the arrow's name, or null to place it automatically.
+     * @param fontSize the size to write the name in, or null for the usual one.
+     */
+    void addArrow(String name, End from, End to, Double labelX, Double labelY,
+                  Integer fontSize) {
         // An arrow that crosses the edge of the page may already be here, waiting: when a
         // parent diagram's arrow arrives at this activity, the model puts the other half of
         // it on this diagram as a stub with one end loose. Drawing a second one is what
         // leaves a diagram with each name on it twice, one of them connected to nothing.
-        if (from.activity == null && to.activity != null && connectStub(name, to, false))
+        if (from.activity == null && to.activity != null
+                && connectStub(name, to, false, labelX, labelY, fontSize))
             return;
-        if (to.activity == null && from.activity != null && connectStub(name, from, true))
+        if (to.activity == null && from.activity != null
+                && connectStub(name, from, true, labelX, labelY, fontSize))
             return;
 
         // Both anchors before either point: an arrow that ends at the frame leaves it level
@@ -278,6 +313,11 @@ final class DiagramBuilder {
                     + "diagram.");
         created.getSector().setStream(stream(name),
                 ReplaceStreamType.CHILDREN);
+
+        End box = from.activity == null ? to : from;
+        double[] anchor = from.activity == null ? end : start;
+        nameIt(created, box.side, anchor == null ? 0 : (int) anchor[2],
+                labelX, labelY, fontSize);
     }
 
     /**
@@ -292,7 +332,8 @@ final class DiagramBuilder {
      *
      * @param leaving whether the box is where the arrow starts rather than where it ends.
      */
-    private boolean connectStub(String name, End box, boolean leaving) {
+    private boolean connectStub(String name, End box, boolean leaving,
+                                Double labelX, Double labelY, Integer fontSize) {
         PaintSector stub = null;
         for (PaintSector paint : sectors()) {
             Sector sector = paint.getSector();
@@ -312,6 +353,7 @@ final class DiagramBuilder {
             return false;
 
         boolean looseAtTheStart = stub.getStart() == null;
+        Sector stubbed = stub.getSector();
         SectorRefactor refactor = area.getRefactor();
         refactor.setSector(stub);
         // The states the application puts itself in when the loose end is picked up. Its own
@@ -338,7 +380,150 @@ final class DiagramBuilder {
             throw new IllegalStateException("\"" + name + "\" is already on this diagram as "
                     + "an arrow from the parent, but its loose end could not be joined to \""
                     + box.activity.getName() + "\".");
+
+        // The stub was a stub: it had no name of its own to place. Now that it reaches a box
+        // it is an arrow like any other and gets the same treatment. changeSector may have
+        // replaced the PaintSector, so the current one is asked for rather than assumed.
+        // Found again rather than kept: changeSector leaves the refactor with no current
+        // sector, and it may have replaced the painted object for this one. The row underneath
+        // is the same either way, so that is what identifies it.
+        PaintSector connected = paintedAs(stubbed);
+        if (connected != null)
+            nameIt(connected, box.side, (int) anchor[2], labelX, labelY, fontSize);
         return true;
+    }
+
+    /**
+     * The size an arrow's name is written in. The shipped models use ten, and so does the
+     * application's own default - this only becomes a decision because it has to be WRITTEN,
+     * see {@link #nameIt}.
+     */
+    private static final int ARROW_FONT_SIZE = 10;
+
+    /** How far the name is set back from its own line. */
+    private static final double LABEL_GAP = 3;
+
+    /**
+     * The widest a name is allowed to be laid out. A quarter of the page is what the
+     * application allows a label to grow to, and it is wide enough that most arrow names come
+     * out on one line.
+     */
+    private static final double MAX_LABEL_WIDTH = 200;
+
+    /**
+     * Gives an arrow its name: a label of its own, placed clear of the line, joined back to it
+     * by the zig-zag the notation asks for.
+     *
+     * <p>
+     * All three parts are needed and none of them is decoration. An arrow with no label at all
+     * is what this used to write, and the consequence was not a missing name but a misplaced
+     * one: the panel manufactures a label on every load and puts it at the middle of the line,
+     * so three arrows into one side of a box printed three names in one place. Writing the
+     * font matters for the same reason - the size is what decides how big the label is, the
+     * reader's own setting is used when the file does not say, and the label is re-measured
+     * and re-centred on open. A layout computed here only survives if the file carries the
+     * font it was computed for.
+     */
+    private void nameIt(PaintSector arrow, int side, int slot,
+                        Double labelX, Double labelY, Integer fontSize) {
+        arrow.setFont(new Font(ARROW_FONT_FAMILY, Font.PLAIN,
+                fontSize == null ? ARROW_FONT_SIZE : fontSize));
+        // Not saved by PaintSector.save and not by the path that creates a sector - that call
+        // is commented out there - so it has to be asked for.
+        arrow.saveVisual();
+
+        arrow.createTexts();
+
+        FloatPoint anchor = arrow.getTildaPoint();
+        boolean vertical = side == MovingPanel.TOP || side == MovingPanel.BOTTOM;
+        MovingLabel label = labelOf(arrow);
+        if (label == null)
+            // The group already has its name somewhere else - a branch of an arrow drawn
+            // earlier. Leaving that one where the modeller or an earlier call put it.
+            return;
+        // Measured rather than fitted. resetBoundsX only ever GROWS a label to its minimum,
+        // and it measures at the width the label already has - which for a new one is narrow,
+        // so a name comes out three lines tall and stacks onto its neighbours. Measuring at a
+        // width a name can actually use puts most names on one line, and one line is what
+        // makes three arrows into one side of a box readable at all.
+        area.stringBounder.setFont(arrow.getFont());
+        Rectangle2D needed = area.stringBounder.getLinesBounds(label.getText(),
+                new Rectangle2D.Double(0, 0, MAX_LABEL_WIDTH, 0));
+        FRectangle box = new FRectangle(0, 0, needed.getWidth(), needed.getHeight());
+
+        double x;
+        double y;
+        if (labelX != null && labelY != null) {
+            x = labelX;
+            y = labelY;
+        } else if (vertical) {
+            // Names beside a vertical arrow are written across it, so three arrows into the
+            // bottom of one box would print three names side by side in the width of one.
+            // They step along the arrow instead, which is what the drawn diagrams do.
+            x = anchor.getX() + LABEL_GAP;
+            y = anchor.getY() - box.getHeight() / 2
+                    + (slot - 1) * box.getHeight() * 1.6;
+        } else {
+            x = anchor.getX() - box.getWidth() / 2;
+            y = anchor.getY() - box.getHeight() - LABEL_GAP;
+        }
+        label.setBounds(new FRectangle(x, y, box.getWidth(), box.getHeight()));
+
+        // The zig-zag runs from the line to the name, so it belongs beside the name rather
+        // than at the middle of the arrow. setTildaPos hit-tests the point and dereferences
+        // the result without checking, so it is only ever called on a point already known to
+        // be on the line; otherwise the middle stands, which is where the name is anyway.
+        List<PaintSector> touched = null;
+        if (vertical && labelX == null) {
+            double onTheLine = y + box.getHeight() / 2;
+            if (arrow.isOnMe(anchor.getX(), onTheLine) != null)
+                touched = arrow.setTildaPos(anchor.getX(), onTheLine);
+        }
+        if (touched == null)
+            arrow.setShowTilda(true);
+
+        Engine engine = plugin.getEngine();
+        PaintSector.save(arrow, new DataLoader.MemoryData(), engine);
+        // setTildaPos moves the label off its neighbours, so they are stale until written.
+        if (touched != null)
+            for (PaintSector also : touched)
+                if (also != arrow)
+                    PaintSector.save(also, new DataLoader.MemoryData(), engine);
+    }
+
+    private static final String ARROW_FONT_FAMILY = "Dialog";
+
+    /**
+     * The label of an arrow, wherever it ended up.
+     *
+     * <p>
+     * One name belongs to a whole group of sectors carrying the same stream - the arrow and
+     * every branch of it - and exactly one of them holds the label. Asking the sector that was
+     * just drawn is right most of the time and wrong after a branch, which is why this asks
+     * the group.
+     */
+    @SuppressWarnings("unchecked")
+    private MovingLabel labelOf(PaintSector arrow) {
+        if (arrow.getText() != null)
+            return arrow.getText();
+        HashSet<PaintSector> group = new HashSet<PaintSector>();
+        arrow.getConnectedSector(group);
+        for (PaintSector sector : group)
+            if (sector.getText() != null)
+                return sector.getText();
+        return null;
+    }
+
+    /** The painted sector standing for this row right now, or null if it has gone. */
+    private PaintSector paintedAs(Sector row) {
+        if (row == null)
+            return null;
+        for (PaintSector paint : sectors()) {
+            Sector sector = paint.getSector();
+            if (sector != null && row.getGlobalId().equals(sector.getGlobalId()))
+                return paint;
+        }
+        return null;
     }
 
     private void point(End end, int type, double[] own, double[] other) {
@@ -387,20 +572,21 @@ final class DiagramBuilder {
         if (end.activity == null)
             return null;
         FRectangle bounds = end.activity.getBounds();
-        double along = (occupied(end.activity, end.side) % SLOTS + 1.0) / (SLOTS + 1);
+        int slot = occupied(end.activity, end.side) % SLOTS;
+        double along = (slot + 1.0) / (SLOTS + 1);
         switch (end.side) {
             case MovingPanel.LEFT:
                 return new double[]{bounds.getLeft(),
-                        bounds.getTop() + bounds.getHeight() * along};
+                        bounds.getTop() + bounds.getHeight() * along, slot};
             case MovingPanel.RIGHT:
                 return new double[]{bounds.getRight(),
-                        bounds.getTop() + bounds.getHeight() * along};
+                        bounds.getTop() + bounds.getHeight() * along, slot};
             case MovingPanel.TOP:
                 return new double[]{bounds.getLeft() + bounds.getWidth() * along,
-                        bounds.getTop()};
+                        bounds.getTop(), slot};
             default:
                 return new double[]{bounds.getLeft() + bounds.getWidth() * along,
-                        bounds.getBottom()};
+                        bounds.getBottom(), slot};
         }
     }
 
