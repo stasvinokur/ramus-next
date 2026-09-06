@@ -1,6 +1,7 @@
 package com.ramussoft.local;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.awt.GraphicsEnvironment;
 import java.awt.Window;
@@ -52,6 +53,41 @@ public class RecoveryProgressTest {
 
         assertEquals("the recovery indicator was left realized",
                 before, displayableWindows());
+    }
+
+    /**
+     * And it is never raised in the first place.
+     *
+     * <p>
+     * Closing it is not enough, because most abandoned sessions hold nothing: a model opened
+     * and closed leaves the directory behind, and so does every process killed before it
+     * could tidy up. Those are deleted without a word - but the indicator went up before
+     * anything had looked inside, so double-clicking one model announced that another model
+     * was being restored, once per leftover, and then took the announcement away again.
+     */
+    @Test
+    public void doesNotRaiseTheIndicatorWhenThereIsNothingToRecover() throws Exception {
+        Assume.assumeFalse(GraphicsEnvironment.isHeadless());
+        File session = folder.newFolder("empty-session");
+
+        CountingRunner runner = new CountingRunner();
+        assertFalse("an empty session is nothing to recover",
+                runner.recoverySession(session.getAbsolutePath(), new File("Model.rsf")));
+
+        assertEquals("a window was shown for a session that had nothing in it",
+                0, runner.shown);
+    }
+
+    /** Counts the indicator rather than looking for it: a disposed window is hard to find. */
+    private static final class CountingRunner extends Runner {
+
+        private int shown = 0;
+
+        @Override
+        protected Window showRecoveryProgress(File sourceFile) {
+            shown++;
+            return super.showRecoveryProgress(sourceFile);
+        }
     }
 
     /**

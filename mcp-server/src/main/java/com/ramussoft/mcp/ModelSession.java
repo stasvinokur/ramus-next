@@ -199,7 +199,7 @@ public final class ModelSession implements AutoCloseable {
      * That registration is the difference between a file the application treats as its own
      * and one where every new catalog comes out nameless.
      */
-    private Attribute nameAttribute() {
+    Attribute nameAttribute() {
         java.util.Properties properties =
                 engine.getProperties(AutochangePlugin.AUTO_ADD_ATTRIBUTES);
         String registered = properties.getProperty(AutochangePlugin.ATTRIBUTE_FOR_NAME);

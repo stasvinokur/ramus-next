@@ -385,8 +385,20 @@ public class FileIEngineImpl extends IEngineImpl {
         writeFileNameToLock(source);
     }
 
+    /**
+     * Records in the session lock which model the session belongs to - the only place that
+     * says so, and what the recovery of an abandoned session names it by.
+     *
+     * <p>
+     * From the start of the file and no further than the path, because the second caller
+     * writes a path that may be shorter than the one already there: without the truncation
+     * the tail of the old path would be left behind and recovery would be handed a name that
+     * is two paths run together.
+     */
     private void writeFileNameToLock(File file) throws IOException,
             UnsupportedEncodingException {
+        oLock.seek(0);
+        oLock.setLength(0);
         oLock.write(file.getAbsolutePath().getBytes("UTF-8"));
     }
 
@@ -438,11 +450,8 @@ public class FileIEngineImpl extends IEngineImpl {
         }
         this.file = file;
         zFile = new ZipFile(this.file);
-        if (oLock != null) {
-            oLock.seek(0);
-            oLock.setLength(0);
+        if (oLock != null)
             writeFileNameToLock(file);
-        }
     }
 
     private void saveToFileA(File out) throws IOException {

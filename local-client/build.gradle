@@ -425,6 +425,26 @@ tasks.register('prepareMcpLauncher', WriteProperties) {
     property 'main-jar', 'ramus.jar'
     property 'win-console', 'true'
     property 'description', "${appDisplayName} MCP server"
+    // Two options, and the second is here only because the first one exists. jpackage merges
+    // an added launcher's properties over the main application's per KEY, replacing rather
+    // than appending, so naming java-options at all discards the list the application passes -
+    // including the log4j2 factory, which is why it is repeated verbatim.
+    //
+    // What is deliberately NOT repeated is -Dapple.laf.useScreenMenuBar: a server that talks
+    // over standard input has no menu bar to put anywhere. Left inherited, it was one of the
+    // things telling macOS this process is an application, and the visible result was a Dock
+    // icon that appeared the moment an agent asked for a diagram, and took the focus with it -
+    // out of whatever the person was doing, back to the first desktop.
+    //
+    // apple.awt.UIElement is what makes it an accessory instead: no Dock icon, no menu bar, no
+    // activation, and AWT still works. It has to be here rather than in Info.plist, because
+    // that file is shared with the application launcher and LSUIElement there would hide the
+    // application too. Inert on Windows, where this descriptor is used as well.
+    //
+    // One string, split on whitespace by jpackage - see the note by macJpackageArgs. No -D
+    // value here may contain a space.
+    property 'java-options', '-Dapple.awt.UIElement=true ' +
+            '-Dlog4j2.loggerContextFactory=org.apache.logging.log4j.simple.SimpleLoggerContextFactory'
 }
 
 tasks.register('jpackageDmg') {

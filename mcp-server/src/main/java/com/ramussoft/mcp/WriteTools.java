@@ -91,9 +91,15 @@ final class WriteTools {
         Engine engine = session.getEngine();
         return inTransaction(engine, () -> {
             Element element = engine.createElement(catalog.getId());
-            setName(engine, catalog, element, name);
+            boolean repaired = nameFor(session, engine, catalog, element, name);
             applyAttributes(engine, catalog, element, attributesOf(request));
-            return Map.of("created", Tools.describe(session, element, catalog));
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("created", Tools.describe(session, element, catalog));
+            if (repaired)
+                result.put("note", "Catalog \"" + catalog.getName() + "\" had no attribute "
+                        + "for names, so the standard one was added to it - the same one the "
+                        + "application gives a catalog when it creates one.");
+            return result;
         });
     }
 
@@ -116,7 +122,7 @@ final class WriteTools {
         session.markChanged();
         return inTransaction(engine, () -> {
             if (newName != null)
-                setName(engine, catalog, element, newName.toString());
+                nameFor(session, engine, catalog, element, newName.toString());
             applyAttributes(engine, catalog, element, attributes);
             return Map.of("updated", Tools.describe(session, element, catalog));
         });
@@ -149,21 +155,36 @@ final class WriteTools {
     // ------------------------------------------------------------- plumbing
 
     /**
-     * An element's name is not a field: it is whichever attribute the catalog nominates as
-     * its name. A catalog that nominates none is one whose elements have no name to set, and
-     * saying so beats writing the name into a random attribute.
+     * An element's name is not a field: it is whichever attribute the catalog nominates as its
+     * name. A catalog that nominates none gets one here.
+     *
+     * <p>
+     * That is a repair rather than an indulgence. Every catalog the application creates is
+     * given the standard name attribute by the plugin that watches for new qualifiers - but
+     * only when the file carries the registration that plugin reads, and a file made before
+     * this server learned to write that registration carries none. So its catalogs have
+     * nowhere to put a name, and refusing left an agent with an error it could do nothing
+     * about. Adding the attribute is exactly what the application would have done when the
+     * catalog was created.
+     *
+     * @return whether the catalog had to be repaired, so the reply can say so.
      */
-    private static void setName(Engine engine, Qualifier catalog, Element element,
-                                String name) {
+    static boolean nameFor(ModelSession session, Engine engine, Qualifier catalog,
+                           Element element, String name) {
         long forName = catalog.getAttributeForName();
         for (Attribute a : catalog.getAttributes())
             if (a.getId() == forName) {
                 engine.setAttribute(element, a, name);
-                return;
+                return false;
             }
-        throw new IllegalArgumentException("Catalog \"" + catalog.getName() + "\" has no "
-                + "attribute nominated to hold the name, so a name cannot be set on its "
-                + "elements. Use \"attributes\" to set values directly.");
+
+        Attribute standard = session.nameAttribute();
+        if (!catalog.getAttributes().contains(standard))
+            catalog.getAttributes().add(standard);
+        catalog.setAttributeForName(standard.getId());
+        engine.updateQualifier(catalog);
+        engine.setAttribute(element, standard, name);
+        return true;
     }
 
     private static void applyAttributes(Engine engine, Qualifier catalog, Element element,

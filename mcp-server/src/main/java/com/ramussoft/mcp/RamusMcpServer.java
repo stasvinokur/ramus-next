@@ -48,7 +48,30 @@ public final class RamusMcpServer {
         return real;
     }
 
+    /**
+     * Asks macOS to treat this process as an accessory rather than an application.
+     *
+     * <p>
+     * Without it the first tool that reads or draws a diagram raises a Dock icon and takes the
+     * focus, because reading a diagram means building the application's own drawing panel and
+     * that starts AppKit. A server talking over standard input has no business appearing on
+     * anybody's screen, still less pulling them out of a fullscreen window.
+     *
+     * <p>
+     * The property is read once, when AWT initialises, so it has to be set before the first
+     * AWT class is touched - which is why this is the first statement of main rather than
+     * something done where the panel is built. The packaged launcher passes it as a -D as
+     * well, and that is the version that cannot be outrun; this one covers running the jar
+     * directly, where there is no launcher to pass anything.
+     */
+    private static void stayOffTheScreen() {
+        if (System.getProperty("os.name", "").startsWith("Mac"))
+            System.setProperty("apple.awt.UIElement", "true");
+    }
+
     public static void main(String[] args) {
+        stayOffTheScreen();
+
         File file = null;
         boolean readOnly = false;
         for (String arg : args) {

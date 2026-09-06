@@ -18,6 +18,8 @@ import java.io.RandomAccessFile;
 import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -218,15 +220,12 @@ public class Runner implements Commands {
                         if (lock != null) {
                             lock.release();
                             rf.close();
-                            FileInputStream fis = new FileInputStream(lockName);
-                            byte[] bs = new byte[fis.available()];
-                            fis.read(bs);
-                            fis.close();
-                            String fileName;
-                            if (bs.length > 0)
-                                fileName = new String(bs, "UTF8");
-                            else
-                                fileName = null;
+                            // Read whole. available() is not a length and the old code threw
+                            // away what read() returned, so a short read left the tail of the
+                            // array as zero bytes INSIDE the recovered file name.
+                            byte[] bs = Files.readAllBytes(new File(lockName).toPath());
+                            String fileName = bs.length > 0
+                                    ? new String(bs, StandardCharsets.UTF_8) : null;
                             File sourceFile = (fileName == null) ? null
                                     : new File(fileName);
                             try {
@@ -689,13 +688,29 @@ public class Runner implements Commands {
         }
     }
 
+    /**
+     * Recovers a session left behind, and says whether there was anything in it.
+     *
+     * <p>
+     * The indicator is raised only once the answer to that is yes. Most abandoned sessions
+     * hold nothing at all - a model opened and closed leaves the directory behind, and so does
+     * every process killed before it could tidy up - and those are deleted without a word by
+     * the caller. Showing the window first meant that a person double-clicking one model was
+     * told a different model was being restored, twice over, for sessions that were about to
+     * be thrown away.
+     */
     public boolean recoverySession(final String sessionPath,
                                    final File sourceFile) {
-        final Window rFrame = showRecoveryProgress(sourceFile);
+        final Window[] indicator = new Window[1];
         try {
-            return recoverSession(sessionPath, sourceFile);
+            return recoverSession(sessionPath, sourceFile, new Runnable() {
+                @Override
+                public void run() {
+                    indicator[0] = showRecoveryProgress(sourceFile);
+                }
+            });
         } finally {
-            closeRecoveryProgress(rFrame);
+            closeRecoveryProgress(indicator[0]);
         }
     }
 
@@ -715,7 +730,8 @@ public class Runner implements Commands {
      * Tab and typing - which go to the focus owner, not to a screen position - kept working.
      * It let go when the user switched applications, because that re-orders the windows.
      */
-    private Window showRecoveryProgress(final File sourceFile) {
+    /** Overridden by a test to see whether it is raised at all. */
+    protected Window showRecoveryProgress(final File sourceFile) {
         if (GraphicsEnvironment.isHeadless())
             return null;
         Window rFrame = new Window((Frame) null);
@@ -743,9 +759,12 @@ public class Runner implements Commands {
             rFrame.dispose();
     }
 
+    /**
+     * @param found run once it is known the session holds something to restore, and not at
+     *              all otherwise. Everything before that point is silent by design.
+     */
     private boolean recoverSession(final String sessionPath,
-                                   final File sourceFile) {
-
+                                   final File sourceFile, final Runnable found) {
         final String s = sessionPath + File.separator + "source.rms";
 
         MemoryDatabase database = new MemoryDatabase() {
@@ -822,6 +841,8 @@ public class Runner implements Commands {
             }
             return false;
         }
+        // Past both ways out, so there really is work: from here on the person is told.
+        found.run();
         ((FileIEngineImpl) engine.getDeligate()).recoveryStreams();
 
         engine.setPluginProperty(CORE, "Changed", Boolean.TRUE);
