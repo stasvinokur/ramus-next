@@ -176,20 +176,28 @@ final class DiagramBuilder {
         // finger's width apart, and their labels land on top of each other. The example
         // model that ships with Ramus draws its context box half again as big, and so does
         // this.
-        rect.setWidth(Math.max(width, MINIMUM_WIDTH));
-        rect.setHeight(Math.min(Math.max(height, MINIMUM_HEIGHT), maxBoxHeight()));
+        rect.setWidth(Math.max(width, minimumWidth()));
+        rect.setHeight(Math.min(Math.max(height, minimumHeight()), maxBoxHeight()));
         return rect;
     }
 
     private static final String BOX_FONT_FAMILY = "Dialog";
 
-    private static final double MINIMUM_WIDTH = 108;
-
     /**
-     * Tall enough that four arrows down one side leave room for their names between them: the
-     * side is divided into five, and a name is about thirteen units high.
+     * How small a box may be. Tall enough that four arrows down one side leave room for their
+     * names between them - the side is divided into five and a name is about thirteen units
+     * high - and on a context diagram much bigger than that, because there is one box and a
+     * whole page to put it on. A cramped context box is what makes its arrow names crowd the
+     * lines and its tildes shrink to dots; the drawn diagrams give that box a third of the
+     * page.
      */
-    private static final double MINIMUM_HEIGHT = 90;
+    private double minimumWidth() {
+        return isAContextDiagram() ? 240 : 108;
+    }
+
+    private double minimumHeight() {
+        return isAContextDiagram() ? 140 : 90;
+    }
 
     /**
      * The strip along the bottom of a box that the text does not get: IDEF0Object keeps it
@@ -430,8 +438,11 @@ final class DiagramBuilder {
      */
     private static final int ARROW_FONT_SIZE = 10;
 
-    /** How far the name is set back from its own line. */
+    /** The least a name is set back from its own line. */
     private static final double LABEL_GAP = 3;
+
+    /** And the most - past this the zig-zag is long rather than clear. */
+    private static final double LABEL_REACH = 12;
 
     /**
      * The widest a name is allowed to be laid out. A quarter of the page is what the
@@ -489,24 +500,33 @@ final class DiagramBuilder {
                 new Rectangle2D.Double(0, 0, MAX_LABEL_WIDTH, 0));
         FRectangle box = new FRectangle(0, 0, needed.getWidth(), needed.getHeight());
 
+        // How far the name stands off its line. Far enough that the zig-zag reads as one and
+        // not as a dot, but never so far that it crosses into the lane of the arrow beside
+        // it: the room is whatever the spacing between two arrows leaves over the name.
+        double lane = activityBounds == null ? 0
+                : (vertical ? activityBounds.getWidth() : activityBounds.getHeight())
+                        / (SLOTS + 1);
+        double gap = Math.max(LABEL_GAP,
+                Math.min(LABEL_REACH, lane / 2 - box.getHeight() / 2));
+
         double x;
         double y;
         if (labelX != null && labelY != null) {
             x = labelX;
             y = labelY;
         } else if (leavesABox) {
-            x = anchor.getX() + LABEL_GAP;
-            y = anchor.getY() - box.getHeight() - LABEL_GAP;
+            x = anchor.getX() + gap;
+            y = anchor.getY() - box.getHeight() - gap;
         } else if (vertical) {
             // Names beside a vertical arrow are written across it, so three arrows into the
             // bottom of one box would print three names side by side in the width of one.
             // They step along the arrow instead, which is what the drawn diagrams do.
-            x = anchor.getX() + LABEL_GAP;
+            x = anchor.getX() + gap;
             y = anchor.getY() - box.getHeight() / 2
                     + (slot - 1) * box.getHeight() * 1.6;
         } else {
             x = anchor.getX() - box.getWidth() / 2;
-            y = anchor.getY() - box.getHeight() - LABEL_GAP;
+            y = anchor.getY() - box.getHeight() - gap;
         }
         // Last resort, and the one that catches every case the rules above do not: a name
         // printed across its own box is unreadable, and it happens whenever the box is at the
