@@ -135,24 +135,15 @@ public class IDEF0TabView extends AbstractView implements TabView {
     private ElementAttributeListener reloadMovingArea = new ElementAttributeListener() {
         @Override
         public void attributeChanged(AttributeEvent event) {
-            if ((event.getAttribute().getName()
-                    .equals(IDEF0Plugin.F_PROJECT_PREFERENCES))
-                    || (event.getAttribute().getName()
-                    .equals(IDEF0Plugin.F_CREATE_DATE))
-                    || (event.getAttribute().getName()
-                    .equals(IDEF0Plugin.F_REV_DATE))
-                    || (event.getAttribute().getName()
-                    .equals(IDEF0Plugin.F_AUTHOR))) {
-                Row row = (Row) dataPlugin.findRowByGlobalId(event
-                        .getElement().getId());
-                if ((row == null) || (row.getParent() == null))
-                    return;
-                if (panel.getMovingArea().getActiveFunction() == null)
-                    return;
-                if (panel.getMovingArea().getActiveFunction().getElement()
-                        .getId() == row.getElementId()) {
-                    refresh();
-                }
+            // The view registers this listener before it builds its panel, and an exception
+            // thrown here is swallowed by the engine along with every listener that would
+            // have run after it - so a null check is not defensive dressing, it is what
+            // keeps an unrelated feature from dying silently.
+            if (panel == null)
+                return;
+            TitleBlockChange change = TitleBlockChange.of(event.getAttribute().getName());
+            if (change != TitleBlockChange.NONE) {
+                titleBlockChanged(change, event.getElement().getId());
             } else if (event.getAttribute().equals(
                     IDEF0Plugin.getFunctionVisualDataAttribute(event
                             .getEngine()))) {
@@ -208,6 +199,46 @@ public class IDEF0TabView extends AbstractView implements TabView {
         }
     };
 
+    /**
+     * Something that is printed in the frame has changed somewhere in this model.
+     *
+     * <p>
+     * Whether it changed anything on THIS sheet is the question {@link TitleBlockChange}
+     * answers, and it has to be asked: the listener is registered on a catalog shared by
+     * every model in the file, so this is told about other models too, and the attributes
+     * involved inherit differently from one another.
+     */
+    private void titleBlockChanged(TitleBlockChange change, long changedElementId) {
+        Function active = panel.getMovingArea().getActiveFunction();
+        if (active == null)
+            return;
+        long[] sheet = TitleBlockChange.sheetPath(active);
+        if (!change.affects(changedElementId, sheet))
+            return;
+        if (change.alsoChangesTheDiagram(changedElementId, sheet))
+            refresh();
+        else
+            repaintTitleBlock();
+    }
+
+    /**
+     * The frame and nothing else. Gated the same way {@link #refresh()} is: bulk operations
+     * turn silent refreshing off and finish with a full reload of their own.
+     */
+    private void repaintTitleBlock() {
+        if (panel == null)
+            return;
+        synchronized (refreshingLock) {
+            if (disableSilentRefresh)
+                return;
+        }
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                panel.repaintTitleBlock();
+            }
+        });
+    }
+
     private void refresh() {
         synchronized (refreshingLock) {
             if (refreshing)
@@ -223,6 +254,9 @@ public class IDEF0TabView extends AbstractView implements TabView {
                 }
                 panel.getMovingArea().silentRefresh(
                         panel.getMovingArea().getActiveFunction());
+                // The frame is drawn by two panels BESIDE the drawing area, not inside it,
+                // so reloading the diagram leaves them showing whatever they showed before.
+                panel.repaintTitleBlock();
             }
 
             ;
@@ -411,6 +445,9 @@ public class IDEF0TabView extends AbstractView implements TabView {
         ViewTitleEvent titleEvent = new ViewTitleEvent(IDEF0TabView.this,
                 getTitle());
         titleChanged(titleEvent);
+        // The tab and the TITLE cell of the frame print the same name, so they had no
+        // business disagreeing - and they did, because only the tab was ever told.
+        repaintTitleBlock();
     }
 
     @Override

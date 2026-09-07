@@ -1214,6 +1214,26 @@ public class IDEFPanel extends ViewPanel {
         return jBottomPanel;
     }
 
+    /**
+     * Redraws the frame around the diagram - the block above it and the block below.
+     *
+     * <p>
+     * Needed because the two are SIBLINGS of the drawing area rather than part of it: all
+     * three sit side by side in one panel with a null layout, so repainting the diagram
+     * cannot reach them. That is why changing the author or the project used to show up only
+     * after a restart - the values were re-read on every paint, but nothing ever asked these
+     * two to paint.
+     *
+     * <p>
+     * Deliberately these two and not the whole editor. A diagram edit stamps the revision
+     * date, so this runs on every mouse-up, and repainting everything there would be paid
+     * for on models where it is felt.
+     */
+    public void repaintTitleBlock() {
+        getJTopPanel().repaint();
+        getJBottomPanel().repaint();
+    }
+
     public void setFunctionMenu(final Function function) {
 
         getJMenu1().removeAll();
