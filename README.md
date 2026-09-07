@@ -70,8 +70,9 @@ Reports are the one feature nothing in the interface explains, so there is a pag
 English and Russian, and the reason the shipped sample reports do not run.
 
 AI agents can read a model, edit it and draw its diagrams through the bundled MCP server:
-[Giving an AI agent access to a model](docs/mcp.md) - how to point Claude at a `.rsf`
-file, what the agent can do, and what it deliberately cannot.
+[Giving an AI agent access to a model](docs/mcp.md) - how to point Claude, Codex, Gemini or
+any other MCP client at a `.rsf` file on macOS or Windows, what the agent can do, and what it
+deliberately cannot.
 
 The original authors’ manuals ship with the application under `dest/doc`.
 

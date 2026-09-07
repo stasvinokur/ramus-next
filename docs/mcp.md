@@ -9,15 +9,27 @@ client expects. The application does not have to be running — or even open.
 
 ## Setting it up
 
-The installer puts the server beside the application, with its own copy of Java. Nothing
-else has to be installed.
+The installer puts the server beside the application, with its own copy of Java. Nothing else
+has to be installed — no JDK, no npm, no Python.
 
 | Platform | Command |
 |---|---|
 | macOS | `/Applications/RamusNext.app/Contents/MacOS/ramus-mcp` |
 | Windows | `C:\Program Files\Ramus Next\ramus-mcp.exe` |
+| Built yourself | `java -jar mcp-server/build/libs/ramus-mcp.jar` |
 
-In Claude Desktop, add it to `claude_desktop_config.json`:
+Two things about the Windows path, because both bite. The installer lets you choose where to
+put the application, so that path is the default rather than a promise — if you changed it,
+the command is `ramus-mcp.exe` inside whatever you chose. And `Ramus Next.exe` beside it is
+**not** the command: that one is the application, a windowed program with nothing attached to
+its standard input, and an MCP client pointed at it will simply hang.
+
+Every client below wants the same three things — a name, the command, and optionally
+arguments. Only the file to put them in differs.
+
+### Claude Desktop
+
+`claude_desktop_config.json`, through Settings → Developer → Edit Config:
 
 ```json
 {
@@ -29,12 +41,32 @@ In Claude Desktop, add it to `claude_desktop_config.json`:
 }
 ```
 
-In Claude Code, add it for every project rather than just the current one — models live
-wherever you keep them, not in a repository:
+On Windows the same file, with the backslashes doubled — JSON reads a single one as an escape:
+
+```json
+{
+  "mcpServers": {
+    "ramus": {
+      "command": "C:\\Program Files\\Ramus Next\\ramus-mcp.exe"
+    }
+  }
+}
+```
+
+### Claude Code
+
+Add it for every project rather than just the current one — models live wherever you keep
+them, not in a repository:
 
 ```bash
 claude mcp add --scope user ramus /Applications/RamusNext.app/Contents/MacOS/ramus-mcp
 ```
+
+```powershell
+claude mcp add --scope user ramus "C:\Program Files\Ramus Next\ramus-mcp.exe"
+```
+
+The quotes are not optional on Windows: the path has a space in it twice.
 
 `--scope` decides who gets it, and the default is not the one you want here:
 
@@ -50,13 +82,98 @@ Passing options to the server needs a `--` first, or the CLI takes them as its o
 claude mcp add --scope user ramus -- /Applications/RamusNext.app/Contents/MacOS/ramus-mcp --read-only
 ```
 
-No file is named, and that is deliberate: the agent finds models with `list_files` and opens
-one with `open_model`. Name a file anyway if you want it open from the start —
+### Codex CLI
+
+`~/.codex/config.toml`:
+
+```toml
+[mcp_servers.ramus]
+command = "/Applications/RamusNext.app/Contents/MacOS/ramus-mcp"
+```
+
+```toml
+[mcp_servers.ramus]
+command = "C:\\Program Files\\Ramus Next\\ramus-mcp.exe"
+```
+
+TOML treats a backslash in a basic string as an escape, exactly as JSON does, so it is doubled
+here too. A literal string in single quotes is the other way of saying it:
+`command = 'C:\Program Files\Ramus Next\ramus-mcp.exe'`.
+
+Or from the command line, which writes that file for you:
+
+```bash
+codex mcp add ramus -- /Applications/RamusNext.app/Contents/MacOS/ramus-mcp
+```
+
+Arguments go after the `--` as well: `codex mcp add ramus -- <command> --read-only`. If you
+put the server in a project's own `.codex/config.toml` rather than the one in your home
+directory, add `trust_level = "trusted"` to the table — Codex ignores project configuration it
+does not trust, and the server would silently never start.
+
+### Gemini CLI
+
+`~/.gemini/settings.json` for everywhere, or `.gemini/settings.json` inside a project:
+
+```json
+{
+  "mcpServers": {
+    "ramus": {
+      "command": "/Applications/RamusNext.app/Contents/MacOS/ramus-mcp"
+    }
+  }
+}
+```
+
+Same doubling on Windows: `"C:\\Program Files\\Ramus Next\\ramus-mcp.exe"`.
+
+Or:
+
+```bash
+gemini mcp add -s user ramus /Applications/RamusNext.app/Contents/MacOS/ramus-mcp
+```
+
+### VS Code, Cursor, Windsurf and the rest
+
+All of them take the same `mcpServers` object with the same `command` and `args`; what differs
+is which file it goes in and which menu writes it — VS Code has `.vscode/mcp.json` and an
+**MCP: Add Server** command, Cursor has `~/.cursor/mcp.json` and a panel under Settings, and
+so on. Copy the Claude Desktop block above into whichever of those your editor uses. Their
+menus move between versions faster than this page can follow, so trust your editor's own
+documentation for the file and this page for what goes in it.
+
+### Any other client
+
+There is nothing special to arrange. This is an ordinary stdio MCP server: one executable,
+speaking JSON-RPC on its standard input and output, with no port, no daemon and no
+configuration file of its own. Anything that can launch a command and talk MCP to it can use
+it. The whole contract is:
+
+```
+ramus-mcp [model.rsf] [--read-only]
+```
+
+Run it in a terminal to see for yourself — it should sit there silently, waiting for input.
+That is a working server; anything it prints goes to standard error, so a message there is a
+message to you.
+
+```bash
+/Applications/RamusNext.app/Contents/MacOS/ramus-mcp
+```
+
+```powershell
+& "C:\Program Files\Ramus Next\ramus-mcp.exe"
+```
+
+### What to put in `args`
+
+No file is named above, and that is deliberate: the agent finds models with `list_files` and
+opens one with `open_model`. Name a file anyway if you want it open from the start —
 `"args": ["/Users/you/models/enterprise.rsf"]` — everything else still works the same.
 
 Add `--read-only` when you want the agent to look but not touch. The tools that change
-anything are then not offered at all, rather than offered and refused: 12 tools instead of
-27.
+anything are then not offered at all, rather than offered and refused: 13 tools instead of
+29.
 
 **One model is open at a time.** `open_model` switches. Comparing two means reading one,
 then opening the other.
@@ -261,8 +378,8 @@ it to return. This is worth knowing because the symptom is confusing: half the t
 with nothing saying why.
 
 To tell which build you are talking to, the server names itself with the build it came from —
-`3.1.0 (build 2026-09-06 23:33)` — in `serverInfo` and again in the instructions the agent
-reads before it calls anything. Two builds a day apart are both 3.1.0; the timestamp is what
+`3.1.1 (build 2026-09-07 09:14)` — in `serverInfo` and again in the instructions the agent
+reads before it calls anything. Two builds a day apart are both 3.1.1; the timestamp is what
 separates them.
 
 ## If it does not work

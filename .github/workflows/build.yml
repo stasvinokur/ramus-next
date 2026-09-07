@@ -163,6 +163,37 @@ jobs:
             exit 1
           fi
 
+          # The MCP launcher. Documented as the command to point an agent at, and until now
+          # never checked to exist at all - a second launcher is easy to lose in a packaging
+          # change, and losing it breaks something no test would have noticed.
+          echo "--- MCP launcher"
+          mcp="$app/Contents/MacOS/ramus-mcp"
+          test -x "$mcp" || { echo "ramus-mcp is missing from the bundle"; exit 1; }
+
+          mcpcfg="$app/Contents/app/ramus-mcp.cfg"
+          cat "$mcpcfg"
+          # Same trap as above, and this launcher is likelier to hit it: its java-options are
+          # written as one string holding two options, which jpackage splits on whitespace.
+          fragments=$(grep '^java-options=' "$mcpcfg" | grep -v '^java-options=-' || true)
+          if [ -n "$fragments" ]; then
+            echo "a java-option in the MCP cfg does not start with a dash - it is a fragment:"
+            echo "$fragments"
+            exit 1
+          fi
+
+          # And that it actually speaks the protocol. Checking the file exists proves it was
+          # packaged; only this proves it runs.
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | "$mcp" > /tmp/mcp.out 2>/tmp/mcp.err || true
+          grep -q '"serverInfo"' /tmp/mcp.out \
+            || { echo "the MCP launcher did not answer initialize:"; cat /tmp/mcp.err; exit 1; }
+          grep -q '"tools"' /tmp/mcp.out \
+            || { echo "the MCP launcher listed no tools:"; cat /tmp/mcp.err; exit 1; }
+          echo "MCP launcher answered on stdio"
+
           echo "--- architecture"
           file "$app/Contents/MacOS/RamusNext"
           file "$app/Contents/runtime/Contents/Home/bin/java" | tee /tmp/arch.txt
@@ -210,6 +241,34 @@ jobs:
           # a dash; a fragment of a split one does not.
           $fragments = Get-Content $cfg | Where-Object { $_ -match '^java-options=' -and $_ -notmatch '^java-options=-' }
           if ($fragments) { $fragments; throw "a java-option in the cfg is a fragment of a split value" }
+
+          "--- MCP launcher"
+          $mcp = "$installed\ramus-mcp.exe"
+          if (-not (Test-Path $mcp)) { throw "ramus-mcp.exe is missing from the install" }
+          $mcpcfg = "$installed\app\ramus-mcp.cfg"
+          Get-Content $mcpcfg
+          # Same trap as the application's cfg, and likelier here: this launcher's
+          # java-options are written as one string holding two options.
+          $fragments = Get-Content $mcpcfg | Where-Object { $_ -match '^java-options=' -and $_ -notmatch '^java-options=-' }
+          if ($fragments) { $fragments; throw "a java-option in the MCP cfg is a fragment of a split value" }
+
+          # This is the only place the documented Windows command is ever actually run.
+          # win-console is what makes it possible: without it jpackage builds a windowed
+          # executable whose standard input and output are attached to nothing, and this
+          # server speaks its protocol on exactly those two.
+          $req = @(
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}',
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}',
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+          ) -join "`n"
+          $req | Out-File -FilePath "$env:RUNNER_TEMP\mcp.in" -Encoding ascii
+          $p = Start-Process -FilePath $mcp -RedirectStandardInput "$env:RUNNER_TEMP\mcp.in" `
+              -RedirectStandardOutput "$env:RUNNER_TEMP\mcp.out" -RedirectStandardError "$env:RUNNER_TEMP\mcp.err" `
+              -NoNewWindow -Wait -PassThru
+          $out = Get-Content "$env:RUNNER_TEMP\mcp.out" -Raw
+          if ($out -notmatch '"serverInfo"') { Get-Content "$env:RUNNER_TEMP\mcp.err"; throw "the MCP launcher did not answer initialize" }
+          if ($out -notmatch '"tools"') { Get-Content "$env:RUNNER_TEMP\mcp.err"; throw "the MCP launcher listed no tools" }
+          "MCP launcher answered on stdio"
 
           "--- Start menu"
           Get-ChildItem "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Ramus Next" -ErrorAction SilentlyContinue
