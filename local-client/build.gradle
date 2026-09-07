@@ -46,6 +46,12 @@ dependencies {
 }
 tasks.named('test') {
     useJUnit()
+    // Options resolves its directory in a static initializer, and without this it is the
+    // developer's real one - so a test that touches a preference would rewrite the settings
+    // of the application they use, and one that records "open this file next time" would
+    // change what their next launch does.
+    systemProperty 'user.ramus.options',
+            layout.buildDirectory.dir('test-options').get().asFile.absolutePath
 }
 
 

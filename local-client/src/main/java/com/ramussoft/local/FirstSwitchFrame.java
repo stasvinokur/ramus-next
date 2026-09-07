@@ -40,9 +40,9 @@ public class FirstSwitchFrame extends JFrame {
 
     private static final String RSF = ".rsf";
 
-    private static final int OPEN_FILE = 0;
+    static final int OPEN_FILE = 0;
 
-    private static final int CREATE_NEW_FILE = 1;
+    static final int CREATE_NEW_FILE = 1;
 
     private File file;
 
@@ -145,9 +145,13 @@ public class FirstSwitchFrame extends JFrame {
         pack();
         setResizable(false);
         setLocationRelativeTo(null);
-        if (doNotAsk.isSelected()) {
-            ok();
-        }
+        // Deliberately nothing here. This used to call ok() when the "do not ask again"
+        // preference was set, which made constructing this window an ACTION: ok() writes
+        // three preferences and ends in setVisible(false), which the caller turns into
+        // "open that file". So a window nobody had decided to show opened a model - and on
+        // a double-click it opened the PREVIOUS model alongside the one that was asked for,
+        // because nothing here knows a document is already on its way. Whether to ask, and
+        // what to do when the answer is "don't", belongs to whoever is starting up.
     }
 
     private Component createCenterPanel() {

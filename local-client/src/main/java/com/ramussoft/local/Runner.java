@@ -292,44 +292,96 @@ public class Runner implements Commands {
                 file = new File(args[0]);
             open(file);
         } else {
-            if (recoveredCount == 0) {
+            if (recoveredCount == 0 && !isDocumentOpenPending()) {
                 startupLauncher(false);
             }
         }
     }
 
-    public void startupLauncher(boolean showAnyway) {
-        FirstSwitchFrame frame = new FirstSwitchFrame() {
-            /**
-             *
-             */
-            private static final long serialVersionUID = -7348079857187669414L;
+    /**
+     * Whether a document is already on its way to a window, so the startup launcher must
+     * not be shown.
+     *
+     * <p>
+     * Windows and Linux hand a double-clicked model to {@code main} as {@code args[0]}, and
+     * the decision above is then complete on its own. macOS does not: Finder sends an Apple
+     * event, so this process is started with no arguments at all and learns which document
+     * was wanted through a callback. Deciding from the arguments alone put the launcher on
+     * screen every single time somebody opened a model from Finder.
+     *
+     * <p>
+     * Answering this question is platform work and belongs to whoever installed the handler,
+     * which is why it is a seam rather than a check. The default is the honest answer
+     * everywhere the question does not arise.
+     */
+    protected boolean isDocumentOpenPending() {
+        return false;
+    }
+
+    /**
+     * Offers the choice between a new model and an existing one - or, when the user has said
+     * not to ask, makes that choice for them.
+     *
+     * <p>
+     * On the event thread, because it builds and shows a window. It used to be called
+     * straight from the startup thread, which is a Swing violation that had simply not bitten
+     * yet.
+     *
+     * @param showAnyway show the window even when the user asked not to be asked. Used when
+     *                   there is nothing else on screen and no other way to get a window.
+     */
+    public void startupLauncher(final boolean showAnyway) {
+        Runnable show = new Runnable() {
 
             @Override
-            public void setVisible(boolean b) {
-                super.setVisible(b);
-                if (!b) {
-                    if (isOk()) {
-                        Thread thread = new Thread() {
-                            public void run() {
-                                open(getFile());
-                            }
+            public void run() {
+                FirstSwitchFrame frame = new FirstSwitchFrame() {
+                    /**
+                     *
+                     */
+                    private static final long serialVersionUID = -7348079857187669414L;
 
-                            ;
-                        };
-                        thread.start();
+                    @Override
+                    public void setVisible(boolean b) {
+                        super.setVisible(b);
+                        if (!b) {
+                            if (isOk()) {
+                                Thread thread = new Thread() {
+                                    public void run() {
+                                        open(getFile());
+                                    }
+
+                                    ;
+                                };
+                                thread.start();
+                            }
+                            // Hidden is not gone: a realized window keeps its peer and goes
+                            // on taking part in the modal-blocking calculation of every
+                            // later dialog.
+                            dispose();
+                        }
                     }
-                    // Hidden is not gone: a realized window keeps its peer and goes on
-                    // taking part in the modal-blocking calculation of every later dialog.
-                    dispose();
+                };
+                if (!showAnyway && frame.isDoNotShow()) {
+                    // The user told us not to ask, so act on what they chose last time
+                    // rather than put the question up again. This window must still end up
+                    // either shown or disposed - pack() in the constructor has already
+                    // realized it, and a realized window goes on taking part in the
+                    // modal-blocking calculation of every later dialog. Both ways out of
+                    // ok() do that: it ends in setVisible(false), which the override above
+                    // turns into open-and-dispose, or - when the remembered file has since
+                    // been deleted - it makes the window visible so the user can answer
+                    // after all.
+                    frame.ok();
+                    return;
                 }
+                frame.setVisible(true);
             }
         };
-        if (!showAnyway) {
-            if (!frame.isDoNotShow())
-                frame.setVisible(true);
-        } else
-            frame.setVisible(true);
+        if (SwingUtilities.isEventDispatchThread())
+            show.run();
+        else
+            SwingUtilities.invokeLater(show);
     }
 
     private void openFile(File file) {

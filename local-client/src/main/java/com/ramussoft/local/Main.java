@@ -6,6 +6,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import javax.swing.SwingUtilities;
 
@@ -84,15 +86,81 @@ public class Main extends Runner {
         if (!Desktop.isDesktopSupported())
             return;
         try {
-            Desktop.getDesktop().setOpenFileHandler(event -> {
-                pendingOpen.addAll(event.getFiles());
-                if (started)
-                    flushPendingOpen();
-            });
+            Desktop.getDesktop().setOpenFileHandler(event -> desktopRequestedOpen(
+                    event.getFiles()));
         } catch (UnsupportedOperationException ex) {
             System.err.println("macOS open-file handler unsupported: " + ex.getMessage());
         } catch (Throwable t) {
             System.err.println("Failed to set macOS open-file handler: " + t.getMessage());
+        }
+    }
+
+    /**
+     * What the handler does, separated from how it is installed so a test can ask for a
+     * document without a Desktop, an Apple event or a screen.
+     */
+    void desktopRequestedOpen(List<File> files) {
+        pendingOpen.addAll(files);
+        if (started)
+            flushPendingOpen();
+    }
+
+    /**
+     * Whether Finder has already asked for a document.
+     *
+     * <p>
+     * Not gated on {@link #isMac()}: no handler is installed anywhere else, so the list is
+     * empty and the answer is no by construction - and leaving the gate off is what makes
+     * this reachable from a test on a machine that is not a Mac.
+     */
+    @Override
+    protected boolean isDocumentOpenPending() {
+        awaitDesktopEventDelivery();
+        return !pendingOpen.isEmpty();
+    }
+
+    /**
+     * Waits until anything macOS has already handed to this process has reached the handler
+     * above.
+     *
+     * <p>
+     * This is a barrier, not a delay, and the difference is the whole point - it waits for
+     * work that is already queued, not for work that might arrive. Four facts make that
+     * true, and all four are in the JDK rather than in hope:
+     *
+     * <ol>
+     * <li>{@code Desktop.isDesktopSupported()} starts AppKit, and does not return until the
+     * application delegate is installed - it blocks for {@code finishLaunching} and again
+     * while the delegate is set on the main thread.
+     * <li>Nothing is lost before then: the JDK puts a queuing delegate in place BEFORE
+     * {@code finishLaunching}, and replays what it collected into the real one.
+     * <li>{@code setOpenFileHandler} drains that queue onto the event thread.
+     * <li>It drains it at {@code PeerEvent.PRIORITY_EVENT}, which the event queue ranks
+     * ABOVE the ordinary priority of an {@code invokeLater}. So an ordinary task posted
+     * here is dispatched after the callback even if the callback was posted later.
+     * </ol>
+     *
+     * <p>
+     * The timeout is not a grace period and no correct run depends on it. It is there so
+     * that a wedged event thread turns into a slow start rather than an application that
+     * never draws anything.
+     *
+     * <p>
+     * Not skipped when there is no desktop. An event queue exists with or without a screen,
+     * and skipping the drain there would make the one test that pins this behaviour pass
+     * for the wrong reason on a machine with no display - which is every machine the build
+     * runs on.
+     */
+    void awaitDesktopEventDelivery() {
+        CountDownLatch delivered = new CountDownLatch(1);
+        SwingUtilities.invokeLater(delivered::countDown);
+        try {
+            if (!delivered.await(2, TimeUnit.SECONDS))
+                System.err.println("The event thread did not answer within two seconds "
+                        + "while working out whether a document was being opened; "
+                        + "carrying on without it.");
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -153,36 +221,51 @@ public class Main extends Runner {
                         t.printStackTrace();
                     }
                 }
-                dismissStartupLauncher();
+                reconcileStartupLauncher();
             }
         }.start();
     }
 
     /**
-     * On a cold start the application has already decided there is nothing to open by the
-     * time the Apple event arrives, so it puts the startup launcher on screen and the user
-     * ends up looking at both it and their model. Take it away once the model is up.
+     * Makes what is on screen agree with what the user asked for, once the document they
+     * asked for has either opened or failed.
      *
      * <p>
-     * Hiding it is the launcher's own Cancel path: its setVisible override disposes the
-     * window and only opens something when its OK button was pressed, which it was not.
+     * Two directions, and both are needed.
      *
      * <p>
-     * Conditional on a model window existing, and that condition is the whole point. If the
-     * document could not be opened - corrupt, or written by a newer version - Runner.open
-     * reports it and returns, and taking the launcher away then would leave a running
-     * application with no window at all and no way to get one back, right after telling the
-     * user their file failed. Asking GUIFramework rather than trusting open's return value
-     * also covers the case where it returns false because the model was ALREADY open: a
-     * window exists, so the launcher should still go.
+     * A model is up: there should be no launcher. There should not be one anyway - the
+     * decision not to show it is made before the launcher is built - so this is a backstop
+     * against the one link in that argument that comes from Apple's documentation rather
+     * than from source, and against a future macOS that delivers the request later than it
+     * does today. Hiding it is the launcher's own Cancel path: its setVisible override
+     * disposes the window and only opens something when OK was pressed, which it was not.
+     *
+     * <p>
+     * No model is up: the document was corrupt, or written by a newer version. Runner.open
+     * has already said so. Having suppressed the launcher on the strength of a request that
+     * then failed, this must not leave a running application with no window and no way to
+     * get one - so the launcher is shown after all, and shown even to a user who asked not
+     * to be asked, because the alternative there is a second automatic action immediately
+     * after one has just failed.
      */
-    private static void dismissStartupLauncher() {
+    private void reconcileStartupLauncher() {
         SwingUtilities.invokeLater(() -> {
-            if (GUIFramework.getFrameworks().length == 0)
+            if (GUIFramework.getFrameworks().length > 0) {
+                for (Frame frame : Frame.getFrames())
+                    if ((frame instanceof FirstSwitchFrame) && frame.isDisplayable()) {
+                        if (Metadata.DEBUG)
+                            System.err.println("The startup launcher was on screen with a "
+                                    + "model already open - the request must have arrived "
+                                    + "after the decision was made.");
+                        frame.setVisible(false);
+                    }
                 return;
+            }
             for (Frame frame : Frame.getFrames())
                 if ((frame instanceof FirstSwitchFrame) && frame.isDisplayable())
-                    frame.setVisible(false);
+                    return;
+            startupLauncher(true);
         });
     }
 
