@@ -1,5 +1,59 @@
 # Changelog
 
+## 3.1.1
+
+Three things a user hit on the ordinary path through 3.1.0 - open a model, edit its
+properties, connect an agent - and one of them had been there since long before this fork.
+
+### Fixed
+
+- **Double-clicking a model raised a second window that then went away by itself.** The editor
+  opened correctly, but the "create a new file / open an existing one" chooser appeared beside
+  it and disappeared once the model was up. Not a race: the application decided whether to ask
+  from its command-line arguments alone, and macOS never passes a double-clicked document as an
+  argument - it sends an Apple event, which arrives through a callback. So on a cold start the
+  answer was always "there is nothing to open", every single time, and taking the window away
+  afterwards was a workaround rather than a fix. It is no longer shown in the first place, and
+  the decision is not a timer: the request has provably already been delivered by the moment it
+  is made. If the document then fails to open, the chooser appears after all, so a failed open
+  never leaves a running application with no window.
+- **With "use this as default and do not ask again" set, a double-click opened two models.**
+  The chooser performed its remembered choice from its own constructor, so building a window
+  nobody had decided to show opened the previous file - or created an empty model - alongside
+  the one that was actually asked for. Worse, if the remembered file had since been deleted,
+  merely constructing that window ran into a modal error dialog during startup.
+- **Changing the author, the project or a diagram's dates did not show until the application
+  was restarted.** Two faults sharing one branch. The frame around a diagram is drawn by two
+  panels sitting BESIDE the drawing area rather than inside it, so repainting the diagram could
+  never reach them - and nothing in the application had ever asked them to paint. Separately, a
+  change to the model's own properties reached only the context diagram, because it was matched
+  against the sheet that happened to be open, while PROJECT, USED AT, the reader table and an
+  inherited author are printed on every sheet. The status marker and the revision stamp were
+  handled by no branch at all. All of it now refreshes as it is changed, on every sheet that
+  prints it and on no sheet that does not - including through Undo. Two more staleness bugs
+  went with it: the context thumbnail after a box moves, and the TITLE cell after a rename,
+  which the tab updated and the frame did not.
+
+### Documentation
+
+- **The MCP server is documented for more than one client.** There is now a section each for
+  Claude Desktop, Claude Code, Codex CLI, Gemini CLI and the editors, plus one for any client
+  that does not exist yet - which needs only the fact that this is an ordinary stdio server and
+  its single line of usage. Windows is no longer a footnote: every section carries both paths,
+  with the two traps named, since JSON and TOML both read a lone backslash as an escape and the
+  installed path contains two spaces. And it says plainly that `Ramus Next.exe` is not the
+  command - that one is the application, with nothing attached to its standard input, and a
+  client pointed at it hangs.
+
+### Build
+
+- **The build checks the command the documentation hands out.** Nothing ever had: the MCP
+  launcher appeared in no workflow at all, so it could have gone missing from an installer
+  without a single test noticing. Both installers are now checked for it, for a configuration
+  file whose options have not been split into fragments, and for a real answer to `initialize`
+  and `tools/list` over standard input and output. That last check is the only place the
+  documented Windows command is actually run.
+
 ## 3.1.0
 
 Long-standing complaints from the original Ramus issue tracker, closed here. All 31 of
